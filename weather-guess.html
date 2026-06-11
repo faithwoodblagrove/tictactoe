@@ -283,7 +283,8 @@ html,body{min-height:100vh;background:radial-gradient(ellipse at 20% 0%,#3d0a1a 
     <div class="win-msg" id="win-msg"></div>
     <div class="win-btns">
       <button class="btn btn-sm btn-ghost" onclick="leaveGame()">Leave</button>
-      <button class="btn btn-sm" onclick="playAgain()">Next round</button>
+      <button class="btn btn-sm" id="btn-play-again" onclick="playAgain()">Next round</button>
+      <span id="waiting-next" style="display:none;font-size:0.8rem;color:var(--rose-mid);align-self:center;">Waiting for other player...</span>
     </div>
   </div>
 </div>
@@ -492,6 +493,11 @@ function listenRoom() {
 
     if (data.status !== 'waiting') {
       showScreen('game');
+      // Close overlay for both players when a new round starts
+      if (data.status === 'picking') {
+        document.getElementById('win-overlay').classList.remove('show');
+        document.querySelectorAll('.confetti-piece').forEach(p => p.remove());
+      }
       renderGame(data);
     }
   });
@@ -731,11 +737,26 @@ function showRoundOver(data) {
   document.getElementById('win-title').innerHTML = guesser === 'faithy'
     ? `<span style="color:var(--faithy)">Faithy got it!</span>`
     : `<span style="color:var(--rodri)">Rodri got it!</span>`;
-  document.getElementById('win-msg').textContent =
-    `The country was ${flag} ${secret}. Guessed in ${attempts} ${attempts===1?'attempt':'attempts'}.`;
 
-  if (guesser === myPlayer) launchConfetti();
-  renderMap(data); // show the correct country in green
+  // Show who becomes thinker next round
+  const nextThinker = data.guesser; // roles swap: guesser → thinker
+  const nextThinkerName = nextThinker === 'faithy' ? 'Faithy' : 'Rodri';
+  document.getElementById('win-msg').textContent =
+    `The country was ${flag} ${secret}. Guessed in ${attempts} ${attempts===1?'attempt':'attempts'}. Next round: ${nextThinkerName} thinks of a country.`;
+
+  // Only the guesser (winner) sees the Next round button
+  const btnNext = document.getElementById('btn-play-again');
+  const waitingNext = document.getElementById('waiting-next');
+  if (myPlayer === guesser) {
+    btnNext.style.display = 'block';
+    waitingNext.style.display = 'none';
+    launchConfetti();
+  } else {
+    btnNext.style.display = 'none';
+    waitingNext.style.display = 'flex';
+  }
+
+  renderMap(data);
 }
 
 function playAgain() {
