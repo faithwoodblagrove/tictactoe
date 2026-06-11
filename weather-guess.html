@@ -134,6 +134,10 @@ html,body{min-height:100vh;background:radial-gradient(ellipse at 20% 0%,#3d0a1a 
 @keyframes confetti-fall{0%{transform:translateY(-20px) rotate(0deg);opacity:1;}100%{transform:translateY(110vh) rotate(720deg);opacity:0;}}
 
 /* tooltip */
+@keyframes pin-pulse {
+  0%,100% { r: 18; opacity: 0.6; }
+  50% { r: 26; opacity: 0.2; }
+}
 .map-tooltip{position:fixed;background:rgba(26,10,15,0.95);border:1px solid rgba(201,122,154,0.3);border-radius:8px;padding:6px 12px;font-size:0.78rem;pointer-events:none;z-index:50;display:none;color:var(--cream);}
 
 @media(max-width:700px){
@@ -550,11 +554,22 @@ function renderGame(data) {
     if (data.status === 'guessing') {
       outfitCard.style.display = 'block';
       renderOutfitPicker(data);
-      // Show last guess distance to thinker
-      if (data.guesses?.length) {
-        const last = data.guesses[data.guesses.length - 1];
-        document.getElementById('distance-display').textContent = Math.round(last.km).toLocaleString() + ' km';
-        document.getElementById('distance-sub').textContent = 'from ' + last.country;
+      // Show latest guess distance — updated every time a new guess arrives
+      const guesses = data.guesses || [];
+      if (guesses.length) {
+        const last = guesses[guesses.length - 1];
+        const flag = last.flag || '';
+        document.getElementById('distance-display').textContent = Math.round(last.km).toLocaleString() + ' km away';
+        document.getElementById('distance-sub').textContent = flag + ' ' + last.country + ' → your country';
+        // Also show if outfit has been sent for this guess yet
+        const needsOutfit = !last.outfitLevel;
+        document.getElementById('btn-send-outfit').style.background = needsOutfit
+          ? 'linear-gradient(135deg,#c97a9a,#e8647a)'
+          : 'linear-gradient(135deg,var(--wine),var(--rose-dark))';
+        document.getElementById('btn-send-outfit').textContent = needsOutfit ? '⚠️ Send clue now!' : 'Update clue 👕';
+      } else {
+        document.getElementById('distance-display').textContent = '—';
+        document.getElementById('distance-sub').textContent = 'No guesses yet';
       }
     } else {
       outfitCard.style.display = 'none';
@@ -632,19 +647,77 @@ function renderGuessLog(guesses) {
 
 function renderMap(data) {
   const svg = document.getElementById('world-map');
-  // Color guessed countries
   const guessedCountries = (data.guesses || []).map(g => g.country);
+
   svg.querySelectorAll('.country').forEach(el => {
     const name = el.dataset.name;
     el.classList.remove('guessed-faithy','guessed-rodri','correct','secret');
     if (name && guessedCountries.includes(name)) {
       el.classList.add('guessed-' + data.guesser);
     }
-    // Show secret on round over
     if (data.status === 'round_over' && name === data.secretCountry) {
       el.classList.add('correct');
     }
   });
+
+  // Remove old pin if any
+  const oldPin = svg.querySelector('.secret-pin');
+  if (oldPin) oldPin.remove();
+
+  // Add pin for thinker only (so the guesser never sees it)
+  if (myPlayer === data.thinker && data.secretCountry && data.status === 'guessing') {
+    const secretData = COUNTRIES[data.secretCountry];
+    if (secretData) {
+      const W = 2000, H = 1001;
+      const x = (secretData.lng + 180) / 360 * W;
+      const y = (90 - secretData.lat) / 180 * H;
+
+      // Pin group
+      const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+      g.setAttribute('class', 'secret-pin');
+      g.style.pointerEvents = 'none';
+
+      // Pulsing circle behind pin
+      const pulse = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      pulse.setAttribute('cx', x);
+      pulse.setAttribute('cy', y);
+      pulse.setAttribute('r', '18');
+      pulse.setAttribute('fill', 'rgba(232,100,122,0.25)');
+      pulse.setAttribute('stroke', 'rgba(232,100,122,0.6)');
+      pulse.setAttribute('stroke-width', '1.5');
+      pulse.style.animation = 'pin-pulse 1.8s ease-in-out infinite';
+
+      // Pin stem
+      const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      line.setAttribute('x1', x); line.setAttribute('y1', y);
+      line.setAttribute('x2', x); line.setAttribute('y2', y - 40);
+      line.setAttribute('stroke', '#e8647a');
+      line.setAttribute('stroke-width', '2.5');
+
+      // Pin head circle
+      const head = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      head.setAttribute('cx', x); head.setAttribute('cy', y - 48);
+      head.setAttribute('r', '10');
+      head.setAttribute('fill', '#e8647a');
+      head.setAttribute('stroke', '#f0dce8');
+      head.setAttribute('stroke-width', '2');
+
+      // Flag emoji text
+      const flag = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      flag.setAttribute('x', x);
+      flag.setAttribute('y', y - 44);
+      flag.setAttribute('text-anchor', 'middle');
+      flag.setAttribute('dominant-baseline', 'central');
+      flag.setAttribute('font-size', '12');
+      flag.textContent = secretData.flag || '📍';
+
+      g.appendChild(pulse);
+      g.appendChild(line);
+      g.appendChild(head);
+      g.appendChild(flag);
+      svg.appendChild(g);
+    }
+  }
 }
 
 // ══════════════════════════════════════
