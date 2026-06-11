@@ -1,0 +1,1124 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hearts & Crosses 💕</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+
+<!-- Firebase -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getDatabase, ref, set, get, onValue, update, push } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+  // ── Firebase config ── Replace with your own from Firebase Console
+  const firebaseConfig = {
+    apiKey: "AIzaSyDi_ZE2mcO4fDCAf6H8kkj65qGnF3yIRFU",
+    authDomain: "tictactoe-43d05.firebaseapp.com",
+    databaseURL: "https://tictactoe-43d05-default-rtdb.europe-west1.firebasedatabase.app",
+    projectId: "tictactoe-43d05",
+    storageBucket: "tictactoe-43d05.firebasestorage.app",
+    messagingSenderId: "255484181910",
+    appId: "1:255484181910:web:1647517292f0462ae7b1b7"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getDatabase(app);
+
+  // Expose to global scope for the rest of the app
+  window._db = db;
+  window._dbRef = ref;
+  window._dbSet = set;
+  window._dbGet = get;
+  window._dbOnValue = onValue;
+  window._dbUpdate = update;
+  window._dbPush = push;
+  window._firebaseReady = true;
+  document.dispatchEvent(new Event('firebase-ready'));
+</script>
+
+<style>
+  :root {
+    --bg-deep:    #0f0508;
+    --bg-mid:     #1a0a0f;
+    --wine:       #6b1a2e;
+    --rose-dark:  #9c3a5a;
+    --rose-mid:   #c97a9a;
+    --rose-pale:  #e8b4c8;
+    --cream:      #f0dce8;
+    --faithy:     #e8647a;
+    --faithy-dim: #7a2535;
+    --rodri:      #5b7dd8;
+    --rodri-dim:  #243360;
+    --blocked:    #1e0d13;
+    --bomb:       #6b2a10;
+    --wildcard:   #6b4f10;
+    --timer-ok:   #c97a9a;
+    --timer-warn: #e8a030;
+    --timer-red:  #e84040;
+    --shadow:     0 8px 40px rgba(0,0,0,0.7);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html, body {
+    min-height: 100vh;
+    background: radial-gradient(ellipse at 20% 0%, #3d0a1a 0%, #1a0a0f 40%, #0f0508 70%, #050208 100%);
+    font-family: 'Inter', sans-serif;
+    color: var(--cream);
+    overflow-x: hidden;
+  }
+
+  /* ── PARTICLES ── */
+  #particles { position: fixed; inset: 0; pointer-events: none; z-index: 0; }
+  .particle {
+    position: absolute;
+    width: 2px; height: 2px;
+    background: var(--rose-mid);
+    border-radius: 50%;
+    animation: drift linear infinite;
+    opacity: 0;
+  }
+  @keyframes drift {
+    0%   { transform: translateY(100vh) translateX(0); opacity: 0; }
+    10%  { opacity: 0.6; }
+    90%  { opacity: 0.3; }
+    100% { transform: translateY(-10vh) translateX(40px); opacity: 0; }
+  }
+
+  /* ── SCREENS ── */
+  .screen { display: none; position: relative; z-index: 1; }
+  .screen.active { display: flex; flex-direction: column; align-items: center; min-height: 100vh; padding: 32px 16px; }
+
+  /* ── LOGO ── */
+  .logo {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(2rem, 6vw, 3.5rem);
+    font-weight: 700;
+    color: var(--cream);
+    letter-spacing: -0.02em;
+    text-align: center;
+    margin-bottom: 6px;
+  }
+  .logo span { color: var(--rose-mid); font-style: italic; }
+  .tagline {
+    font-size: 0.85rem;
+    color: var(--rose-mid);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    margin-bottom: 40px;
+    text-align: center;
+  }
+
+  /* ── CARDS ── */
+  .card {
+    background: linear-gradient(135deg, rgba(107,26,46,0.25), rgba(15,5,8,0.6));
+    border: 1px solid rgba(201,122,154,0.2);
+    border-radius: 20px;
+    padding: 28px 32px;
+    backdrop-filter: blur(12px);
+    width: 100%;
+    max-width: 480px;
+  }
+  .card-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.1rem;
+    color: var(--rose-pale);
+    margin-bottom: 20px;
+    text-align: center;
+    letter-spacing: 0.02em;
+  }
+
+  /* ── PLAYER SELECT ── */
+  .player-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 0; }
+  .player-btn {
+    background: transparent;
+    border: 2px solid rgba(201,122,154,0.3);
+    border-radius: 16px;
+    padding: 28px 16px;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    display: flex; flex-direction: column; align-items: center; gap: 10px;
+    color: var(--cream);
+    font-family: 'Playfair Display', serif;
+  }
+  .player-btn:hover { transform: translateY(-3px); }
+  .player-btn.faithy { border-color: var(--faithy); }
+  .player-btn.faithy:hover, .player-btn.faithy.selected {
+    background: rgba(232,100,122,0.15);
+    box-shadow: 0 0 30px rgba(232,100,122,0.3);
+  }
+  .player-btn.rodri { border-color: var(--rodri); }
+  .player-btn.rodri:hover, .player-btn.rodri.selected {
+    background: rgba(91,125,216,0.15);
+    box-shadow: 0 0 30px rgba(91,125,216,0.3);
+  }
+  .player-icon { font-size: 2.5rem; }
+  .player-name { font-size: 1.2rem; font-weight: 600; }
+  .player-desc { font-size: 0.72rem; color: var(--rose-mid); font-family: 'Inter', sans-serif; text-align: center; }
+
+  /* ── BUTTONS ── */
+  .btn {
+    background: linear-gradient(135deg, var(--wine), var(--rose-dark));
+    border: none; border-radius: 12px;
+    color: var(--cream); font-family: 'Inter', sans-serif;
+    font-size: 0.95rem; font-weight: 600;
+    padding: 14px 32px; cursor: pointer;
+    transition: all 0.2s ease;
+    letter-spacing: 0.03em;
+    width: 100%;
+    margin-top: 20px;
+  }
+  .btn:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(156,58,90,0.4); }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+  .btn-sm {
+    padding: 8px 20px; font-size: 0.82rem;
+    border-radius: 8px; width: auto; margin-top: 0;
+  }
+  .btn-ghost {
+    background: transparent;
+    border: 1px solid rgba(201,122,154,0.3);
+  }
+  .btn-ghost:hover { background: rgba(201,122,154,0.1); box-shadow: none; }
+
+  /* ── SIZE SELECT ── */
+  .size-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .size-btn {
+    background: transparent;
+    border: 1px solid rgba(201,122,154,0.25);
+    border-radius: 10px; padding: 14px 8px;
+    color: var(--rose-pale); cursor: pointer;
+    transition: all 0.2s; font-family: 'Inter', sans-serif;
+    font-size: 0.8rem; text-align: center;
+  }
+  .size-btn .size-num { font-family: 'Playfair Display', serif; font-size: 1.4rem; display: block; color: var(--cream); }
+  .size-btn:hover, .size-btn.selected {
+    border-color: var(--rose-mid);
+    background: rgba(201,122,154,0.12);
+    box-shadow: 0 0 15px rgba(201,122,154,0.2);
+  }
+
+  /* ── WAITING SCREEN ── */
+  .waiting-pulse {
+    width: 80px; height: 80px;
+    border-radius: 50%;
+    background: var(--rose-dark);
+    animation: pulse-wait 1.5s ease-in-out infinite;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 2rem; margin: 30px auto;
+  }
+  @keyframes pulse-wait {
+    0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(156,58,90,0.5); }
+    50% { transform: scale(1.08); box-shadow: 0 0 0 20px rgba(156,58,90,0); }
+  }
+  .room-code-display {
+    font-family: 'Playfair Display', serif;
+    font-size: 2.5rem; letter-spacing: 0.2em;
+    color: var(--rose-mid); text-align: center;
+    margin: 12px 0;
+  }
+
+  /* ── GAME SCREEN ── */
+  #screen-game { padding: 16px; }
+  .game-layout { width: 100%; max-width: 900px; display: grid; grid-template-columns: 1fr auto 1fr; gap: 16px; align-items: start; }
+
+  /* Player panels */
+  .player-panel {
+    background: linear-gradient(135deg, rgba(107,26,46,0.2), rgba(15,5,8,0.5));
+    border: 1px solid rgba(201,122,154,0.15);
+    border-radius: 16px; padding: 16px;
+    transition: all 0.3s;
+  }
+  .player-panel.active-turn {
+    border-color: rgba(201,122,154,0.5);
+    box-shadow: 0 0 20px rgba(201,122,154,0.2);
+  }
+  .player-panel.faithy-panel.active-turn { border-color: var(--faithy); box-shadow: 0 0 20px rgba(232,100,122,0.25); }
+  .player-panel.rodri-panel.active-turn { border-color: var(--rodri); box-shadow: 0 0 20px rgba(91,125,216,0.25); }
+  .panel-name { font-family: 'Playfair Display', serif; font-size: 1rem; margin-bottom: 4px; }
+  .panel-score { font-size: 2rem; font-weight: 700; margin-bottom: 4px; }
+  .panel-streak { font-size: 0.72rem; color: var(--rose-mid); }
+  .panel-status { font-size: 0.75rem; margin-top: 8px; color: var(--rose-mid); min-height: 18px; }
+  .faithy-color { color: var(--faithy); }
+  .rodri-color { color: var(--rodri); }
+
+  /* Timer */
+  .timer-wrap { text-align: center; }
+  .timer-ring-svg { transform: rotate(-90deg); }
+  .timer-ring-bg { fill: none; stroke: rgba(201,122,154,0.1); }
+  .timer-ring-fg { fill: none; stroke: var(--timer-ok); stroke-linecap: round; transition: stroke-dashoffset 1s linear, stroke 0.5s; }
+  .timer-num {
+    font-family: 'Playfair Display', serif; font-size: 1.6rem;
+    fill: var(--cream); dominant-baseline: central; text-anchor: middle;
+  }
+
+  /* Board */
+  .board-wrap { grid-column: 2; display: flex; flex-direction: column; align-items: center; gap: 12px; }
+  .board {
+    display: grid;
+    gap: 5px;
+    background: rgba(107,26,46,0.15);
+    border: 1px solid rgba(201,122,154,0.1);
+    border-radius: 14px; padding: 10px;
+  }
+  .cell {
+    width: clamp(44px, 7vw, 68px);
+    height: clamp(44px, 7vw, 68px);
+    border-radius: 8px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(201,122,154,0.12);
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: clamp(1.2rem, 2.5vw, 1.8rem);
+    font-weight: 700;
+    transition: all 0.18s ease;
+    position: relative; overflow: hidden;
+    font-family: 'Playfair Display', serif;
+  }
+  .cell:hover:not(.taken):not(.blocked):not(.bomb-cell) {
+    background: rgba(201,122,154,0.15);
+    border-color: rgba(201,122,154,0.4);
+    transform: scale(1.05);
+  }
+  .cell.taken { cursor: default; }
+  .cell.faithy-taken { background: rgba(232,100,122,0.2); border-color: var(--faithy); color: var(--faithy); }
+  .cell.rodri-taken { background: rgba(91,125,216,0.2); border-color: var(--rodri); color: var(--rodri); }
+  .cell.blocked {
+    background: var(--blocked); border-color: rgba(255,255,255,0.05);
+    cursor: not-allowed; color: rgba(255,255,255,0.15);
+  }
+  .cell.bomb-cell {
+    background: rgba(107,42,16,0.4); border-color: rgba(220,100,40,0.4);
+    cursor: pointer;
+    animation: bomb-pulse 2.5s ease-in-out infinite;
+  }
+  .cell.wildcard-cell {
+    background: rgba(107,79,16,0.35); border-color: rgba(220,180,40,0.4);
+    animation: wild-pulse 3s ease-in-out infinite;
+  }
+  .cell.winning-cell {
+    animation: win-flash 0.5s ease-in-out infinite alternate;
+  }
+  .cell.faithy-taken.winning-cell { box-shadow: 0 0 20px var(--faithy); }
+  .cell.rodri-taken.winning-cell { box-shadow: 0 0 20px var(--rodri); }
+  @keyframes bomb-pulse {
+    0%, 100% { box-shadow: 0 0 5px rgba(220,100,40,0.3); }
+    50% { box-shadow: 0 0 15px rgba(220,100,40,0.6); }
+  }
+  @keyframes wild-pulse {
+    0%, 100% { box-shadow: 0 0 5px rgba(220,180,40,0.2); }
+    50% { box-shadow: 0 0 18px rgba(220,180,40,0.5); }
+  }
+  @keyframes win-flash {
+    from { transform: scale(1); }
+    to { transform: scale(1.1); }
+  }
+  .cell-place-anim { animation: cell-pop 0.25s cubic-bezier(0.34,1.56,0.64,1); }
+  @keyframes cell-pop { from { transform: scale(0); } to { transform: scale(1); } }
+
+  /* Legend */
+  .legend { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
+  .legend-item { display: flex; align-items: center; gap: 5px; font-size: 0.72rem; color: var(--rose-pale); }
+  .legend-dot { width: 10px; height: 10px; border-radius: 3px; }
+
+  /* ── CHAT ── */
+  .chat-wrap {
+    width: 100%; max-width: 900px; margin-top: 16px;
+    background: rgba(15,5,8,0.6);
+    border: 1px solid rgba(201,122,154,0.15);
+    border-radius: 16px; overflow: hidden;
+  }
+  .chat-header {
+    padding: 10px 16px; border-bottom: 1px solid rgba(201,122,154,0.1);
+    font-size: 0.78rem; color: var(--rose-mid);
+    font-family: 'Playfair Display', serif; letter-spacing: 0.05em;
+  }
+  .chat-messages {
+    height: 120px; overflow-y: auto; padding: 10px 16px;
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .chat-messages::-webkit-scrollbar { width: 4px; }
+  .chat-messages::-webkit-scrollbar-thumb { background: var(--wine); border-radius: 2px; }
+  .chat-msg { font-size: 0.8rem; }
+  .chat-msg .msg-who { font-weight: 600; margin-right: 6px; }
+  .chat-msg.faithy-msg .msg-who { color: var(--faithy); }
+  .chat-msg.rodri-msg .msg-who { color: var(--rodri); }
+  .chat-msg.system-msg { color: var(--rose-mid); font-style: italic; font-size: 0.74rem; }
+  .chat-input-row { display: flex; gap: 8px; padding: 10px 16px; border-top: 1px solid rgba(201,122,154,0.1); }
+  .chat-input {
+    flex: 1; background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(201,122,154,0.2); border-radius: 8px;
+    padding: 8px 12px; color: var(--cream); font-family: 'Inter', sans-serif;
+    font-size: 0.82rem; outline: none;
+  }
+  .chat-input:focus { border-color: rgba(201,122,154,0.4); }
+  .chat-input::placeholder { color: rgba(201,122,154,0.4); }
+
+  /* ── WIN OVERLAY ── */
+  #win-overlay {
+    display: none; position: fixed; inset: 0; z-index: 100;
+    background: rgba(10,3,6,0.92); backdrop-filter: blur(8px);
+    align-items: center; justify-content: center; flex-direction: column;
+  }
+  #win-overlay.show { display: flex; }
+  .win-card {
+    background: linear-gradient(135deg, rgba(107,26,46,0.5), rgba(15,5,8,0.9));
+    border: 1px solid rgba(201,122,154,0.3);
+    border-radius: 24px; padding: 48px 56px; text-align: center;
+    max-width: 460px; width: 90%;
+    animation: win-card-in 0.5s cubic-bezier(0.34,1.56,0.64,1);
+  }
+  @keyframes win-card-in { from { transform: scale(0.6); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  .win-emoji { font-size: 4rem; margin-bottom: 16px; display: block; }
+  .win-title { font-family: 'Playfair Display', serif; font-size: 2rem; margin-bottom: 12px; }
+  .win-msg { color: var(--rose-pale); line-height: 1.6; margin-bottom: 28px; font-size: 0.95rem; }
+  .win-btns { display: flex; gap: 12px; justify-content: center; }
+
+  /* ── CONFETTI ── */
+  .confetti-piece {
+    position: fixed; width: 8px; height: 8px; border-radius: 2px;
+    animation: confetti-fall linear forwards;
+    pointer-events: none; z-index: 99;
+  }
+  @keyframes confetti-fall {
+    0%   { transform: translateY(-20px) rotate(0deg); opacity: 1; }
+    100% { transform: translateY(110vh) rotate(720deg); opacity: 0; }
+  }
+
+  /* ── MISC ── */
+  .turn-indicator {
+    font-size: 0.8rem; color: var(--rose-mid);
+    text-align: center; letter-spacing: 0.05em;
+  }
+  .section-gap { height: 20px; }
+  .input-field {
+    width: 100%; background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(201,122,154,0.25); border-radius: 10px;
+    padding: 12px 16px; color: var(--cream); font-family: 'Inter', sans-serif;
+    font-size: 0.9rem; outline: none; margin-bottom: 12px;
+  }
+  .input-field:focus { border-color: rgba(201,122,154,0.5); }
+  .input-field::placeholder { color: rgba(201,122,154,0.35); }
+  .or-divider { text-align: center; color: var(--rose-mid); font-size: 0.8rem; margin: 16px 0; letter-spacing: 0.1em; }
+  .error-msg { color: #e87070; font-size: 0.8rem; text-align: center; margin-top: 8px; min-height: 20px; }
+  .game-top { display: flex; align-items: center; justify-content: center; gap: 16px; margin-bottom: 16px; }
+
+  @media (max-width: 700px) {
+    .game-layout { grid-template-columns: 1fr; }
+    .board-wrap { grid-column: 1; }
+    .player-panel { display: flex; align-items: center; gap: 16px; }
+    .panel-score { font-size: 1.5rem; }
+  }
+</style>
+</head>
+<body>
+
+<div id="particles"></div>
+
+<!-- ═══════════════════════════════════════════════
+     SCREEN 1: PLAYER SELECT
+     ═══════════════════════════════════════════════ -->
+<div id="screen-select" class="screen active">
+  <div class="logo">Hearts &amp; <span>Crosses</span></div>
+  <div class="tagline">A game for two ✦ Play together, apart</div>
+
+  <div class="card">
+    <div class="card-title">Who are you?</div>
+    <div class="player-grid">
+      <button class="player-btn faithy" onclick="selectPlayer('faithy')">
+        <span class="player-icon">🌸</span>
+        <span class="player-name faithy-color">Faithy</span>
+        <span class="player-desc">The reigning champion</span>
+      </button>
+      <button class="player-btn rodri" onclick="selectPlayer('rodri')">
+        <span class="player-icon">⚡</span>
+        <span class="player-name rodri-color">Rodri</span>
+        <span class="player-desc">The eternal underdog</span>
+      </button>
+    </div>
+    <button class="btn" id="btn-next-select" disabled onclick="goToLobby()">Continue →</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     SCREEN 2: LOBBY
+     ═══════════════════════════════════════════════ -->
+<div id="screen-lobby" class="screen">
+  <div class="logo" style="font-size:2rem; margin-bottom:4px;">Hearts &amp; <span>Crosses</span></div>
+  <div class="tagline" style="margin-bottom:28px;">Set up your game</div>
+
+  <div class="card" style="margin-bottom:16px;">
+    <div class="card-title">Board Size</div>
+    <div class="size-grid">
+      <button class="size-btn" onclick="selectSize(5)" id="sz-5">
+        <span class="size-num">5×5</span>
+        4 in a row to win
+      </button>
+      <button class="size-btn selected" onclick="selectSize(6)" id="sz-6">
+        <span class="size-num">6×6</span>
+        4 in a row to win
+      </button>
+      <button class="size-btn" onclick="selectSize(7)" id="sz-7">
+        <span class="size-num">7×7</span>
+        5 in a row to win
+      </button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Room</div>
+    <input class="input-field" id="room-input" placeholder="Room name (e.g. faithyrodri)" maxlength="20">
+    <button class="btn" onclick="createOrJoinRoom()">Create / Join Room</button>
+    <div class="error-msg" id="lobby-error"></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     SCREEN 3: WAITING
+     ═══════════════════════════════════════════════ -->
+<div id="screen-waiting" class="screen">
+  <div class="logo" style="font-size:2rem;">Waiting...</div>
+  <div class="tagline">Share the room name with the other player</div>
+
+  <div class="card" style="text-align:center;">
+    <div class="card-title">Room Code</div>
+    <div class="room-code-display" id="waiting-room-name">—</div>
+    <div class="waiting-pulse">💕</div>
+    <p style="font-size:0.85rem; color:var(--rose-pale); margin-bottom:4px;">Waiting for the other player to join...</p>
+    <p style="font-size:0.75rem; color:var(--rose-mid);">Both players must select the same room name</p>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     SCREEN 4: GAME
+     ═══════════════════════════════════════════════ -->
+<div id="screen-game" class="screen">
+  <div class="game-top">
+    <div class="logo" style="font-size:1.4rem; margin-bottom:0;">Hearts &amp; <span>Crosses</span></div>
+    <button class="btn btn-sm btn-ghost" onclick="leaveGame()">Leave</button>
+  </div>
+
+  <div class="game-layout" id="game-layout">
+    <!-- Left: Faithy -->
+    <div class="player-panel faithy-panel" id="panel-faithy">
+      <div class="panel-name faithy-color">🌸 Faithy</div>
+      <div class="panel-score faithy-color" id="score-faithy">0</div>
+      <div class="panel-streak" id="streak-faithy"></div>
+      <div class="panel-status" id="status-faithy"></div>
+    </div>
+
+    <!-- Center: board + timer -->
+    <div class="board-wrap">
+      <!-- Timer -->
+      <div class="timer-wrap">
+        <svg width="70" height="70" class="timer-ring-svg" id="timer-svg">
+          <circle class="timer-ring-bg" cx="35" cy="35" r="28" stroke-width="5"/>
+          <circle class="timer-ring-fg" id="timer-fg" cx="35" cy="35" r="28" stroke-width="5"
+            stroke-dasharray="175.9" stroke-dashoffset="0"/>
+          <text class="timer-num" id="timer-num" x="35" y="36">60</text>
+        </svg>
+      </div>
+
+      <div class="turn-indicator" id="turn-text">Waiting...</div>
+      <div class="board" id="board"></div>
+
+      <div class="legend">
+        <div class="legend-item"><div class="legend-dot" style="background:#1e0d13;border:1px solid rgba(255,255,255,0.15)"></div> Blocked</div>
+        <div class="legend-item"><div class="legend-dot" style="background:rgba(107,42,16,0.7)"></div> 💣 Bomb</div>
+        <div class="legend-item"><div class="legend-dot" style="background:rgba(107,79,16,0.7)"></div> ⭐ Wild</div>
+      </div>
+    </div>
+
+    <!-- Right: Rodri -->
+    <div class="player-panel rodri-panel" id="panel-rodri">
+      <div class="panel-name rodri-color">⚡ Rodri</div>
+      <div class="panel-score rodri-color" id="score-rodri">0</div>
+      <div class="panel-streak" id="streak-rodri"></div>
+      <div class="panel-status" id="status-rodri"></div>
+    </div>
+  </div>
+
+  <!-- Chat -->
+  <div class="chat-wrap" id="chat-wrap" style="max-width:900px; margin:16px auto 0;">
+    <div class="chat-header">💬 Chat</div>
+    <div class="chat-messages" id="chat-messages"></div>
+    <div class="chat-input-row">
+      <input class="chat-input" id="chat-input" placeholder="Type a message..." maxlength="120" onkeydown="chatKeydown(event)">
+      <button class="btn btn-sm" onclick="sendChat()" style="margin-top:0;">Send</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     WIN OVERLAY
+     ═══════════════════════════════════════════════ -->
+<div id="win-overlay">
+  <div class="win-card">
+    <span class="win-emoji" id="win-emoji">🏆</span>
+    <div class="win-title" id="win-title">Someone won!</div>
+    <div class="win-msg" id="win-msg"></div>
+    <div class="win-btns">
+      <button class="btn btn-sm btn-ghost" onclick="leaveGame()">Leave</button>
+      <button class="btn btn-sm" onclick="playAgain()">Play Again</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════
+let myPlayer = null;      // 'faithy' | 'rodri'
+let roomName = null;
+let boardSize = 6;
+let winLen = 4;
+let gameState = null;     // mirrored from Firebase
+let timerInterval = null;
+let timerSec = 60;
+let isMyTurn = false;
+
+// Win messages
+const FAITHY_WIN_MSGS = [
+  "Obviously Faithy wins again — she's literally perfect 👑✨",
+  "No surprise here. Faithy is simply built different. 🌸",
+  "Faithy takes another one. Rodri didn't stand a chance, did he? 💅",
+  "The queen reigns supreme. Again. 👸 How does it feel, Rodri?",
+  "Faithy wins! Scientists are baffled. Rodri is not. 🔬"
+];
+const RODRI_WIN_MSGS = [
+  "Wow. Rodri actually won one. Don't get used to it, mate. 💀",
+  "Rodri wins! A Christmas miracle. In every month. 😐",
+  "Against all odds, against all reason — Rodri. Wow. 🤷",
+  "Rodri wins! Faithy must have gone easy on him. Sweet of her. 🥲",
+  "Ladies and gentlemen... Rodri. He did a thing. Bless him. 👏"
+];
+const DRAW_MSGS = [
+  "A draw?! Neither of you could manage a win? Embarrassing, honestly. 😬",
+  "It's a draw. No one wins. No one loses. Everyone is slightly sad. 🤝"
+];
+
+// ═══════════════════════════════════════════════
+// PARTICLES
+// ═══════════════════════════════════════════════
+(function spawnParticles() {
+  const container = document.getElementById('particles');
+  for (let i = 0; i < 25; i++) {
+    const p = document.createElement('div');
+    p.className = 'particle';
+    p.style.left = Math.random() * 100 + '%';
+    p.style.animationDuration = (8 + Math.random() * 12) + 's';
+    p.style.animationDelay = (Math.random() * 10) + 's';
+    p.style.width = p.style.height = (1 + Math.random() * 3) + 'px';
+    p.style.opacity = 0.3 + Math.random() * 0.5;
+    container.appendChild(p);
+  }
+})();
+
+// ═══════════════════════════════════════════════
+// NAVIGATION
+// ═══════════════════════════════════════════════
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen-' + id).classList.add('active');
+}
+
+function selectPlayer(p) {
+  myPlayer = p;
+  document.querySelectorAll('.player-btn').forEach(b => b.classList.remove('selected'));
+  document.querySelector('.player-btn.' + p).classList.add('selected');
+  document.getElementById('btn-next-select').disabled = false;
+}
+
+function goToLobby() {
+  if (!myPlayer) return;
+  showScreen('lobby');
+}
+
+function selectSize(s) {
+  boardSize = s;
+  winLen = s === 7 ? 5 : 4;
+  document.querySelectorAll('.size-btn').forEach(b => b.classList.remove('selected'));
+  document.getElementById('sz-' + s).classList.add('selected');
+}
+
+// ═══════════════════════════════════════════════
+// ROOM / FIREBASE
+// ═══════════════════════════════════════════════
+function waitForFirebase(cb) {
+  if (window._firebaseReady) { cb(); return; }
+  document.addEventListener('firebase-ready', cb, { once: true });
+}
+
+function createOrJoinRoom() {
+  const raw = document.getElementById('room-input').value.trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+  if (!raw) { setLobbyError('Please enter a room name.'); return; }
+  roomName = raw;
+
+  waitForFirebase(() => {
+    const roomRef = window._dbRef(window._db, 'rooms/' + roomName);
+    window._dbGet(roomRef).then(snap => {
+      const data = snap.val();
+
+      if (!data) {
+        // Create new room
+        const initial = buildInitialState();
+        window._dbSet(roomRef, initial).then(() => {
+          listenToRoom();
+          showScreen('waiting');
+          document.getElementById('waiting-room-name').textContent = roomName;
+        });
+      } else {
+        // Join existing
+        if (data.players && data.players.faithy && data.players.rodri) {
+          setLobbyError('Room is full!'); return;
+        }
+        // Update boardSize from host if joining
+        if (data.boardSize) { boardSize = data.boardSize; winLen = boardSize === 7 ? 5 : 4; }
+        listenToRoom();
+        showScreen('waiting');
+        document.getElementById('waiting-room-name').textContent = roomName;
+      }
+    }).catch(e => setLobbyError('Connection error: ' + e.message));
+  });
+}
+
+function setLobbyError(msg) {
+  document.getElementById('lobby-error').textContent = msg;
+}
+
+function buildInitialState() {
+  const cells = generateBoard(boardSize);
+  return {
+    boardSize,
+    winLen,
+    cells,
+    turn: 'faithy',
+    timerStart: Date.now(),
+    scores: { faithy: 0, rodri: 0 },
+    streaks: { faithy: 0, rodri: 0 },
+    status: 'waiting',  // waiting | playing | done
+    players: {},
+    winner: null,
+    winCells: [],
+    chat: {}
+  };
+}
+
+function generateBoard(size) {
+  const cells = {};
+  const total = size * size;
+  // Decide special cells (about 15% of board)
+  const specialCount = Math.floor(total * 0.15);
+  const indices = Array.from({length: total}, (_, i) => i);
+  shuffle(indices);
+  const specials = indices.slice(0, specialCount);
+  const types = ['blocked', 'bomb', 'wildcard'];
+
+  for (let i = 0; i < total; i++) {
+    const row = Math.floor(i / size);
+    const col = i % size;
+    let type = 'empty';
+    if (specials.includes(i)) {
+      // Distribute types
+      const ti = specials.indexOf(i) % 3;
+      type = types[ti];
+    }
+    cells[`${row}_${col}`] = { type, owner: null };
+  }
+  return cells;
+}
+
+function shuffle(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+}
+
+let roomUnsubscribe = null;
+function listenToRoom() {
+  const roomRef = window._dbRef(window._db, 'rooms/' + roomName);
+  roomUnsubscribe = window._dbOnValue(roomRef, snap => {
+    const data = snap.val();
+    if (!data) return;
+    gameState = data;
+
+    // Register self as player
+    if (!data.players || !data.players[myPlayer]) {
+      window._dbUpdate(window._dbRef(window._db, `rooms/${roomName}/players`), { [myPlayer]: true });
+    }
+
+    // Both players present → start game
+    if (data.players && data.players.faithy && data.players.rodri && data.status === 'waiting') {
+      window._dbUpdate(roomRef, { status: 'playing', timerStart: Date.now() });
+    }
+
+    if (data.status === 'playing' || data.status === 'done') {
+      showScreen('game');
+      renderGame(data);
+    }
+  });
+
+  // Listen to chat separately
+  const chatRef = window._dbRef(window._db, 'rooms/' + roomName + '/chat');
+  window._dbOnValue(chatRef, snap => {
+    const msgs = snap.val();
+    renderChat(msgs);
+  });
+}
+
+// ═══════════════════════════════════════════════
+// RENDER GAME
+// ═══════════════════════════════════════════════
+function renderGame(data) {
+  boardSize = data.boardSize || 6;
+  winLen = data.winLen || 4;
+
+  // Panels
+  document.getElementById('score-faithy').textContent = data.scores?.faithy ?? 0;
+  document.getElementById('score-rodri').textContent = data.scores?.rodri ?? 0;
+  document.getElementById('streak-faithy').textContent = (data.streaks?.faithy > 0) ? `🔥 ${data.streaks.faithy} streak` : '';
+  document.getElementById('streak-rodri').textContent = (data.streaks?.rodri > 0) ? `🔥 ${data.streaks.rodri} streak` : '';
+
+  const turnName = data.turn === 'faithy' ? '🌸 Faithy' : '⚡ Rodri';
+  isMyTurn = data.turn === myPlayer && data.status === 'playing';
+
+  document.getElementById('turn-text').textContent = isMyTurn ? 'Your turn ✦' : `${turnName}'s turn`;
+  document.getElementById('panel-faithy').classList.toggle('active-turn', data.turn === 'faithy');
+  document.getElementById('panel-rodri').classList.toggle('active-turn', data.turn === 'rodri');
+
+  // Status messages
+  document.getElementById('status-faithy').textContent = '';
+  document.getElementById('status-rodri').textContent = '';
+  if (data.turn === 'faithy') document.getElementById('status-faithy').textContent = '▶ Thinking...';
+  if (data.turn === 'rodri') document.getElementById('status-rodri').textContent = '▶ Thinking...';
+
+  // Board
+  renderBoard(data);
+
+  // Timer
+  if (data.status === 'playing') {
+    startTimer(data.timerStart, data.turn);
+  }
+
+  // Win
+  if (data.status === 'done' && data.winner !== undefined) {
+    stopTimer();
+    showWin(data.winner, data);
+  }
+}
+
+function renderBoard(data) {
+  const board = document.getElementById('board');
+  board.style.gridTemplateColumns = `repeat(${boardSize}, 1fr)`;
+
+  // Keep existing cells if possible, just update
+  const existingCells = board.querySelectorAll('.cell');
+  const needRebuild = existingCells.length !== boardSize * boardSize;
+  if (needRebuild) board.innerHTML = '';
+
+  for (let r = 0; r < boardSize; r++) {
+    for (let c = 0; c < boardSize; c++) {
+      const key = `${r}_${c}`;
+      const cell = data.cells?.[key] || { type: 'empty', owner: null };
+      let el = needRebuild ? null : board.querySelector(`[data-key="${key}"]`);
+
+      if (!el) {
+        el = document.createElement('div');
+        el.className = 'cell';
+        el.dataset.key = key;
+        el.onclick = () => handleCellClick(key);
+        board.appendChild(el);
+      }
+
+      // Reset classes
+      el.className = 'cell';
+
+      if (cell.type === 'blocked') {
+        el.classList.add('blocked');
+        el.textContent = '✕';
+      } else if (cell.type === 'bomb' && !cell.owner) {
+        el.classList.add('bomb-cell');
+        el.textContent = '💣';
+      } else if (cell.type === 'wildcard' && !cell.owner) {
+        el.classList.add('wildcard-cell');
+        el.textContent = '⭐';
+      } else if (cell.owner) {
+        el.classList.add('taken', cell.owner + '-taken');
+        el.textContent = cell.owner === 'faithy' ? '♥' : '✦';
+      } else {
+        el.textContent = '';
+      }
+
+      // Highlight winning cells
+      if (data.winCells && data.winCells.includes(key)) {
+        el.classList.add('winning-cell');
+      }
+    }
+  }
+}
+
+// ═══════════════════════════════════════════════
+// CELL CLICK
+// ═══════════════════════════════════════════════
+function handleCellClick(key) {
+  if (!isMyTurn || !gameState || gameState.status !== 'playing') return;
+  const cell = gameState.cells[key];
+  if (!cell || cell.type === 'blocked' || cell.owner) return;
+
+  const isBomb = cell.type === 'bomb';
+  const isWild = cell.type === 'wildcard';
+
+  // Animate
+  const el = document.querySelector(`[data-key="${key}"]`);
+  if (el) el.classList.add('cell-place-anim');
+
+  const roomRef = window._dbRef(window._db, 'rooms/' + roomName);
+  const updates = {};
+
+  if (isBomb) {
+    // Bomb: claim but lose turn
+    updates[`cells/${key}/owner`] = myPlayer;
+    updates[`cells/${key}/type`] = 'bomb_taken';
+    // turn stays — switch to other player (penalty = no placement advantage, they still switch)
+    updates['turn'] = myPlayer === 'faithy' ? 'rodri' : 'faithy';
+    updates['timerStart'] = Date.now();
+    // Status message
+    const statusKey = 'status-' + myPlayer;
+    window._dbUpdate(roomRef, updates);
+    return;
+  }
+
+  // Normal or wildcard
+  if (isWild) {
+    // Wildcard counts for both — we mark as owner but add a "wild" flag so win check counts it
+    updates[`cells/${key}/wild`] = true;
+  }
+  updates[`cells/${key}/owner`] = myPlayer;
+
+  // Check win
+  const newCells = JSON.parse(JSON.stringify(gameState.cells));
+  newCells[key] = { ...newCells[key], owner: myPlayer };
+  if (isWild) newCells[key].wild = true;
+
+  const winResult = checkWin(newCells, myPlayer, boardSize, winLen);
+
+  if (winResult) {
+    updates['status'] = 'done';
+    updates['winner'] = myPlayer;
+    updates['winCells'] = winResult;
+    const scores = gameState.scores || { faithy: 0, rodri: 0 };
+    scores[myPlayer] = (scores[myPlayer] || 0) + 1;
+    const streaks = gameState.streaks || { faithy: 0, rodri: 0 };
+    const other = myPlayer === 'faithy' ? 'rodri' : 'faithy';
+    streaks[myPlayer] = (streaks[myPlayer] || 0) + 1;
+    streaks[other] = 0;
+    updates['scores'] = scores;
+    updates['streaks'] = streaks;
+  } else if (isBoardFull(newCells, boardSize)) {
+    updates['status'] = 'done';
+    updates['winner'] = 'draw';
+  } else {
+    const next = myPlayer === 'faithy' ? 'rodri' : 'faithy';
+    updates['turn'] = next;
+    updates['timerStart'] = Date.now();
+  }
+
+  window._dbUpdate(roomRef, updates);
+}
+
+function isBoardFull(cells, size) {
+  for (let r = 0; r < size; r++) {
+    for (let c = 0; c < size; c++) {
+      const cell = cells[`${r}_${c}`];
+      if (cell && cell.type !== 'blocked' && !cell.owner) return false;
+    }
+  }
+  return true;
+}
+
+function checkWin(cells, player, size, len) {
+  const dirs = [[0,1],[1,0],[1,1],[1,-1]];
+  for (let r = 0; r < size; r++) {
+    for (let c = 0; c < size; c++) {
+      for (const [dr, dc] of dirs) {
+        const line = [];
+        for (let i = 0; i < len; i++) {
+          const nr = r + dr*i, nc = c + dc*i;
+          if (nr < 0 || nr >= size || nc < 0 || nc >= size) break;
+          const cell = cells[`${nr}_${nc}`];
+          // Wild cells count for both players
+          if (cell && (cell.owner === player || cell.wild)) {
+            line.push(`${nr}_${nc}`);
+          } else break;
+        }
+        if (line.length === len) return line;
+      }
+    }
+  }
+  return null;
+}
+
+// ═══════════════════════════════════════════════
+// TIMER
+// ═══════════════════════════════════════════════
+function startTimer(timerStart, currentTurn) {
+  stopTimer();
+  const circumference = 175.9;
+  const fg = document.getElementById('timer-fg');
+  const num = document.getElementById('timer-num');
+
+  function tick() {
+    const elapsed = Math.floor((Date.now() - timerStart) / 1000);
+    timerSec = Math.max(0, 60 - elapsed);
+    num.textContent = timerSec;
+
+    const pct = timerSec / 60;
+    fg.style.strokeDashoffset = circumference * (1 - pct);
+
+    if (timerSec <= 15) {
+      fg.style.stroke = 'var(--timer-red)';
+      num.style.fill = 'var(--timer-red)';
+    } else if (timerSec <= 30) {
+      fg.style.stroke = 'var(--timer-warn)';
+      num.style.fill = 'var(--timer-warn)';
+    } else {
+      fg.style.stroke = 'var(--timer-ok)';
+      num.style.fill = 'var(--cream)';
+    }
+
+    // Timer expired: auto-pass turn (only the current player handles it)
+    if (timerSec === 0 && isMyTurn) {
+      stopTimer();
+      const next = myPlayer === 'faithy' ? 'rodri' : 'faithy';
+      window._dbUpdate(window._dbRef(window._db, 'rooms/' + roomName), {
+        turn: next,
+        timerStart: Date.now()
+      });
+    }
+  }
+
+  tick();
+  timerInterval = setInterval(tick, 500);
+}
+
+function stopTimer() {
+  if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+}
+
+// ═══════════════════════════════════════════════
+// WIN
+// ═══════════════════════════════════════════════
+function showWin(winner, data) {
+  const overlay = document.getElementById('win-overlay');
+  overlay.classList.add('show');
+
+  if (winner === 'faithy') {
+    document.getElementById('win-emoji').textContent = '👑';
+    document.getElementById('win-title').innerHTML = '<span style="color:var(--faithy)">Faithy Wins!</span>';
+    document.getElementById('win-msg').textContent = FAITHY_WIN_MSGS[Math.floor(Math.random() * FAITHY_WIN_MSGS.length)];
+    if (myPlayer === 'faithy') launchConfetti();
+  } else if (winner === 'rodri') {
+    document.getElementById('win-emoji').textContent = '😮';
+    document.getElementById('win-title').innerHTML = '<span style="color:var(--rodri)">Rodri Wins?!</span>';
+    document.getElementById('win-msg').textContent = RODRI_WIN_MSGS[Math.floor(Math.random() * RODRI_WIN_MSGS.length)];
+    if (myPlayer === 'rodri') launchConfetti();
+  } else {
+    document.getElementById('win-emoji').textContent = '🤝';
+    document.getElementById('win-title').textContent = "It's a Draw";
+    document.getElementById('win-msg').textContent = DRAW_MSGS[Math.floor(Math.random() * DRAW_MSGS.length)];
+  }
+}
+
+function launchConfetti() {
+  const colors = ['#e8647a','#c97a9a','#f0dce8','#e8b050','#fff'];
+  for (let i = 0; i < 80; i++) {
+    setTimeout(() => {
+      const p = document.createElement('div');
+      p.className = 'confetti-piece';
+      p.style.left = Math.random() * 100 + 'vw';
+      p.style.top = '-10px';
+      p.style.background = colors[Math.floor(Math.random() * colors.length)];
+      p.style.animationDuration = (1.5 + Math.random() * 2) + 's';
+      p.style.animationDelay = Math.random() * 0.5 + 's';
+      p.style.borderRadius = Math.random() > 0.5 ? '50%' : '2px';
+      p.style.width = p.style.height = (6 + Math.random() * 8) + 'px';
+      document.body.appendChild(p);
+      setTimeout(() => p.remove(), 4000);
+    }, i * 30);
+  }
+}
+
+// ═══════════════════════════════════════════════
+// PLAY AGAIN / LEAVE
+// ═══════════════════════════════════════════════
+function playAgain() {
+  document.getElementById('win-overlay').classList.remove('show');
+  // Remove confetti
+  document.querySelectorAll('.confetti-piece').forEach(p => p.remove());
+
+  if (!roomName || !gameState) return;
+  const roomRef = window._dbRef(window._db, 'rooms/' + roomName);
+  const newCells = generateBoard(boardSize);
+  window._dbUpdate(roomRef, {
+    cells: newCells,
+    turn: 'faithy',
+    timerStart: Date.now(),
+    status: 'playing',
+    winner: null,
+    winCells: []
+  });
+}
+
+function leaveGame() {
+  stopTimer();
+  if (roomUnsubscribe) roomUnsubscribe();
+  document.getElementById('win-overlay').classList.remove('show');
+  document.querySelectorAll('.confetti-piece').forEach(p => p.remove());
+  gameState = null; roomName = null; myPlayer = null;
+  showScreen('select');
+  document.querySelectorAll('.player-btn').forEach(b => b.classList.remove('selected'));
+  document.getElementById('btn-next-select').disabled = true;
+}
+
+// ═══════════════════════════════════════════════
+// CHAT
+// ═══════════════════════════════════════════════
+function chatKeydown(e) { if (e.key === 'Enter') sendChat(); }
+
+function sendChat() {
+  const input = document.getElementById('chat-input');
+  const text = input.value.trim();
+  if (!text || !roomName || !myPlayer) return;
+  input.value = '';
+
+  const chatRef = window._dbRef(window._db, `rooms/${roomName}/chat`);
+  window._dbPush(chatRef, {
+    player: myPlayer,
+    text,
+    ts: Date.now()
+  });
+}
+
+function renderChat(msgs) {
+  const container = document.getElementById('chat-messages');
+  if (!msgs) { container.innerHTML = ''; return; }
+
+  const arr = Object.values(msgs).sort((a, b) => a.ts - b.ts);
+  const wasAtBottom = container.scrollTop + container.clientHeight >= container.scrollHeight - 20;
+
+  container.innerHTML = arr.map(m => {
+    const who = m.player === 'faithy' ? '🌸 Faithy' : '⚡ Rodri';
+    const cls = m.player + '-msg';
+    return `<div class="chat-msg ${cls}"><span class="msg-who">${who}</span>${escHtml(m.text)}</div>`;
+  }).join('');
+
+  if (wasAtBottom) container.scrollTop = container.scrollHeight;
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+</script>
+</body>
+</html>
