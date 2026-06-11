@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OurGames 💕</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-deep:   #0f0508;
+    --wine:      #6b1a2e;
+    --rose-dark: #9c3a5a;
+    --rose-mid:  #c97a9a;
+    --rose-pale: #e8b4c8;
+    --cream:     #f0dce8;
+    --faithy:    #e8647a;
+    --rodri:     #5b7dd8;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html, body {
+    min-height: 100vh;
+    background: radial-gradient(ellipse at 20% 0%, #3d0a1a 0%, #1a0a0f 40%, #0f0508 70%, #050208 100%);
+    font-family: 'Inter', sans-serif;
+    color: var(--cream);
+    overflow-x: hidden;
+  }
+
+  /* ── PARTICLES ── */
+  #particles { position: fixed; inset: 0; pointer-events: none; z-index: 0; }
+  .particle {
+    position: absolute; width: 2px; height: 2px;
+    background: var(--rose-mid); border-radius: 50%;
+    animation: drift linear infinite; opacity: 0;
+  }
+  @keyframes drift {
+    0%   { transform: translateY(100vh) translateX(0); opacity: 0; }
+    10%  { opacity: 0.5; }
+    90%  { opacity: 0.2; }
+    100% { transform: translateY(-10vh) translateX(30px); opacity: 0; }
+  }
+
+  /* ── LAYOUT ── */
+  .page {
+    position: relative; z-index: 1;
+    min-height: 100vh;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    padding: 48px 20px;
+    gap: 0;
+  }
+
+  /* ── HERO ── */
+  .hero { text-align: center; margin-bottom: 56px; }
+
+  .eyebrow {
+    font-size: 0.72rem; letter-spacing: 0.25em;
+    text-transform: uppercase; color: var(--rose-mid);
+    margin-bottom: 16px; display: block;
+  }
+
+  .wordmark {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(3.5rem, 10vw, 7rem);
+    font-weight: 700;
+    color: var(--cream);
+    letter-spacing: -0.03em;
+    line-height: 0.95;
+    margin-bottom: 6px;
+  }
+  .wordmark em {
+    font-style: italic;
+    color: var(--rose-mid);
+  }
+
+  .hearts-divider {
+    display: flex; align-items: center; gap: 12px;
+    justify-content: center; margin: 18px 0 14px;
+  }
+  .hearts-divider::before,
+  .hearts-divider::after {
+    content: '';
+    height: 1px; width: 60px;
+    background: linear-gradient(to right, transparent, rgba(201,122,154,0.4));
+  }
+  .hearts-divider::after { transform: scaleX(-1); }
+  .hearts-divider span { font-size: 1rem; opacity: 0.7; }
+
+  .subtitle {
+    font-size: 0.88rem; color: var(--rose-pale);
+    letter-spacing: 0.04em; line-height: 1.6;
+  }
+  .subtitle strong { color: var(--faithy); font-weight: 600; }
+  .subtitle strong.r { color: var(--rodri); }
+
+  /* ── GAME CARDS ── */
+  .games-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+    width: 100%;
+    max-width: 760px;
+  }
+
+  .game-card {
+    position: relative;
+    background: linear-gradient(145deg, rgba(107,26,46,0.22), rgba(10,3,6,0.65));
+    border: 1px solid rgba(201,122,154,0.18);
+    border-radius: 24px;
+    padding: 32px 28px 28px;
+    cursor: pointer;
+    text-decoration: none; color: inherit;
+    transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+    overflow: hidden;
+    display: block;
+  }
+  .game-card::before {
+    content: '';
+    position: absolute; inset: 0;
+    border-radius: 24px;
+    background: radial-gradient(circle at 30% 20%, rgba(201,122,154,0.08), transparent 70%);
+    pointer-events: none;
+  }
+  .game-card:hover {
+    transform: translateY(-6px);
+    border-color: rgba(201,122,154,0.45);
+    box-shadow: 0 20px 50px rgba(107,26,46,0.4);
+  }
+
+  .card-tag {
+    display: inline-block;
+    font-size: 0.65rem; letter-spacing: 0.18em;
+    text-transform: uppercase; color: var(--rose-mid);
+    border: 1px solid rgba(201,122,154,0.3);
+    border-radius: 20px; padding: 3px 10px;
+    margin-bottom: 20px;
+  }
+
+  .card-icon {
+    font-size: 3.2rem;
+    display: block;
+    margin-bottom: 14px;
+    line-height: 1;
+    transition: transform 0.3s ease;
+  }
+  .game-card:hover .card-icon { transform: scale(1.12) rotate(-4deg); }
+
+  .card-name {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.6rem; font-weight: 700;
+    color: var(--cream);
+    margin-bottom: 8px;
+    letter-spacing: -0.01em;
+  }
+
+  .card-desc {
+    font-size: 0.82rem;
+    color: var(--rose-pale);
+    line-height: 1.65;
+    margin-bottom: 24px;
+  }
+
+  .card-pills {
+    display: flex; gap: 6px; flex-wrap: wrap;
+    margin-bottom: 24px;
+  }
+  .pill {
+    font-size: 0.68rem; padding: 3px 10px;
+    border-radius: 20px; background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(201,122,154,0.2);
+    color: var(--rose-pale); letter-spacing: 0.05em;
+  }
+
+  .card-cta {
+    display: flex; align-items: center; justify-content: space-between;
+    padding-top: 20px;
+    border-top: 1px solid rgba(201,122,154,0.12);
+  }
+  .cta-text {
+    font-size: 0.82rem; font-weight: 600;
+    color: var(--rose-mid); letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+  .cta-arrow {
+    width: 32px; height: 32px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--wine), var(--rose-dark));
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.9rem;
+    transition: transform 0.2s ease;
+  }
+  .game-card:hover .cta-arrow { transform: translateX(3px); }
+
+  /* ── FOOTER ── */
+  .footer {
+    margin-top: 52px;
+    text-align: center;
+    font-size: 0.72rem;
+    color: rgba(201,122,154,0.35);
+    letter-spacing: 0.08em;
+  }
+  .footer strong { color: rgba(201,122,154,0.55); }
+
+  /* ── FLOATING HEARTS ── */
+  .float-heart {
+    position: fixed; pointer-events: none; z-index: 0;
+    font-size: 1.2rem; opacity: 0.06;
+    animation: float-around linear infinite;
+  }
+  @keyframes float-around {
+    0%   { transform: translateY(0) rotate(0deg); }
+    50%  { transform: translateY(-30px) rotate(15deg); }
+    100% { transform: translateY(0) rotate(0deg); }
+  }
+
+  @media (max-width: 500px) {
+    .wordmark { font-size: 3rem; }
+    .game-card { padding: 24px 20px 20px; }
+    .card-name { font-size: 1.3rem; }
+  }
+</style>
+</head>
+<body>
+
+<div id="particles"></div>
+
+<!-- floating hearts bg -->
+<div class="float-heart" style="top:15%;left:8%;animation-duration:7s;font-size:2rem;">♥</div>
+<div class="float-heart" style="top:70%;left:5%;animation-duration:9s;animation-delay:-3s;">♥</div>
+<div class="float-heart" style="top:25%;right:7%;animation-duration:8s;animation-delay:-2s;font-size:1.8rem;">♥</div>
+<div class="float-heart" style="top:65%;right:9%;animation-duration:11s;animation-delay:-5s;">♥</div>
+<div class="float-heart" style="top:45%;left:3%;animation-duration:6s;animation-delay:-1s;font-size:0.9rem;">♥</div>
+
+<div class="page">
+
+  <!-- HERO -->
+  <div class="hero">
+    <span class="eyebrow">made with love · for two</span>
+    <div class="wordmark">Our<em>Games</em></div>
+    <div class="hearts-divider"><span>♥</span></div>
+    <p class="subtitle">
+      A private little arcade for <strong>Faithy</strong> &amp; <strong class="r">Rodri</strong><br>
+      Pick a game. Play together, wherever you are.
+    </p>
+  </div>
+
+  <!-- GAME CARDS -->
+  <div class="games-grid">
+
+    <!-- Hearts & Crosses -->
+    <a class="game-card" href="hearts-and-crosses.html">
+      <span class="card-tag">Strategy</span>
+      <span class="card-icon">♥✦</span>
+      <div class="card-name">Hearts &amp; Crosses</div>
+      <p class="card-desc">
+        An evolved noughts &amp; crosses on a bigger board — with hidden bombs, wildcards, and a 60-second clock ticking against you.
+      </p>
+      <div class="card-pills">
+        <span class="pill">5×5 · 6×6 · 7×7</span>
+        <span class="pill">💣 Bombs</span>
+        <span class="pill">⭐ Wildcards</span>
+        <span class="pill">⏱ 60s timer</span>
+      </div>
+      <div class="card-cta">
+        <span class="cta-text">Play now</span>
+        <div class="cta-arrow">→</div>
+      </div>
+    </a>
+
+    <!-- Weather Guess -->
+    <a class="game-card" href="weather-guess.html">
+      <span class="card-tag">Geography</span>
+      <span class="card-icon">🌍</span>
+      <div class="card-name">Weather Guess</div>
+      <p class="card-desc">
+        One player thinks of a country. The other clicks countries on a world map trying to find it — guided only by what the thinker dresses their avatar in.
+      </p>
+      <div class="card-pills">
+        <span class="pill">🗺 World map</span>
+        <span class="pill">👗 10 outfit levels</span>
+        <span class="pill">🔄 Swap roles</span>
+        <span class="pill">No time limit</span>
+      </div>
+      <div class="card-cta">
+        <span class="cta-text">Play now</span>
+        <div class="cta-arrow">→</div>
+      </div>
+    </a>
+
+  </div>
+
+  <div class="footer">
+    <strong>OurGames</strong> · only for Faithy &amp; Rodri · always online
+  </div>
+
+</div>
+
+<script>
+  // Particles
+  (function() {
+    const c = document.getElementById('particles');
+    for (let i = 0; i < 22; i++) {
+      const p = document.createElement('div');
+      p.className = 'particle';
+      p.style.left = Math.random() * 100 + '%';
+      p.style.animationDuration = (9 + Math.random() * 12) + 's';
+      p.style.animationDelay = (Math.random() * 12) + 's';
+      p.style.width = p.style.height = (1 + Math.random() * 2.5) + 'px';
+      c.appendChild(p);
+    }
+  })();
+</script>
+</body>
+</html>
