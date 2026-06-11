@@ -275,7 +275,7 @@
     position: relative; overflow: hidden;
     font-family: 'Playfair Display', serif;
   }
-  .cell:hover:not(.taken):not(.blocked):not(.bomb-cell) {
+  .cell:hover:not(.taken):not(.blocked) {
     background: rgba(201,122,154,0.15);
     border-color: rgba(201,122,154,0.4);
     transform: scale(1.05);
@@ -287,28 +287,13 @@
     background: var(--blocked); border-color: rgba(255,255,255,0.05);
     cursor: not-allowed; color: rgba(255,255,255,0.15);
   }
-  .cell.bomb-cell {
-    background: rgba(107,42,16,0.4); border-color: rgba(220,100,40,0.4);
-    cursor: pointer;
-    animation: bomb-pulse 2.5s ease-in-out infinite;
-  }
-  .cell.wildcard-cell {
-    background: rgba(107,79,16,0.35); border-color: rgba(220,180,40,0.4);
-    animation: wild-pulse 3s ease-in-out infinite;
-  }
+  /* bomb-cell and wildcard-cell classes intentionally removed — cells are hidden until clicked */
   .cell.winning-cell {
     animation: win-flash 0.5s ease-in-out infinite alternate;
   }
   .cell.faithy-taken.winning-cell { box-shadow: 0 0 20px var(--faithy); }
   .cell.rodri-taken.winning-cell { box-shadow: 0 0 20px var(--rodri); }
-  @keyframes bomb-pulse {
-    0%, 100% { box-shadow: 0 0 5px rgba(220,100,40,0.3); }
-    50% { box-shadow: 0 0 15px rgba(220,100,40,0.6); }
-  }
-  @keyframes wild-pulse {
-    0%, 100% { box-shadow: 0 0 5px rgba(220,180,40,0.2); }
-    50% { box-shadow: 0 0 18px rgba(220,180,40,0.5); }
-  }
+
   @keyframes win-flash {
     from { transform: scale(1); }
     to { transform: scale(1.1); }
@@ -523,9 +508,8 @@
       <div class="board" id="board"></div>
 
       <div class="legend">
-        <div class="legend-item"><div class="legend-dot" style="background:#1e0d13;border:1px solid rgba(255,255,255,0.15)"></div> Blocked</div>
-        <div class="legend-item"><div class="legend-dot" style="background:rgba(107,42,16,0.7)"></div> 💣 Bomb</div>
-        <div class="legend-item"><div class="legend-dot" style="background:rgba(107,79,16,0.7)"></div> ⭐ Wild</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#1e0d13;border:1px solid rgba(255,255,255,0.15)"></div> ✕ Blocked</div>
+        <div class="legend-item" style="color:var(--rose-mid); font-style:italic;">? = could be anything...</div>
       </div>
     </div>
 
@@ -790,8 +774,20 @@ function renderGame(data) {
   // Status messages
   document.getElementById('status-faithy').textContent = '';
   document.getElementById('status-rodri').textContent = '';
-  if (data.turn === 'faithy') document.getElementById('status-faithy').textContent = '▶ Thinking...';
-  if (data.turn === 'rodri') document.getElementById('status-rodri').textContent = '▶ Thinking...';
+
+  // Show bomb/wildcard event feedback for a moment
+  if (data.lastEvent && data.lastEvent.ts && (Date.now() - data.lastEvent.ts < 4000)) {
+    const ev = data.lastEvent;
+    if (ev.type === 'bomb') {
+      const victim = ev.player;
+      document.getElementById('status-' + victim).textContent = '💣 Stepped on a bomb! Turn lost!';
+    } else if (ev.type === 'wildcard') {
+      document.getElementById('status-' + ev.player).textContent = '⭐ Wildcard played!';
+    }
+  } else {
+    if (data.turn === 'faithy') document.getElementById('status-faithy').textContent = '▶ Thinking...';
+    if (data.turn === 'rodri') document.getElementById('status-rodri').textContent = '▶ Thinking...';
+  }
 
   // Board
   renderBoard(data);
@@ -831,22 +827,28 @@ function renderBoard(data) {
         board.appendChild(el);
       }
 
-      // Reset classes
+      // Reset classes and inline styles completely
       el.className = 'cell';
+      el.style.color = '';
+      el.style.fontSize = '';
+      el.removeAttribute('title');
 
       if (cell.type === 'blocked') {
+        // Blocked cells are visible — permanent obstacles
         el.classList.add('blocked');
         el.textContent = '✕';
-      } else if (cell.type === 'bomb' && !cell.owner) {
-        el.classList.add('bomb-cell');
-        el.textContent = '💣';
-      } else if (cell.type === 'wildcard' && !cell.owner) {
-        el.classList.add('wildcard-cell');
-        el.textContent = '⭐';
       } else if (cell.owner) {
+        // Cell has been claimed — NOW reveal what it was
         el.classList.add('taken', cell.owner + '-taken');
-        el.textContent = cell.owner === 'faithy' ? '♥' : '✦';
+        if (cell.type === 'bomb_taken') {
+          el.textContent = '💣';
+        } else if (cell.wild) {
+          el.textContent = '⭐';
+        } else {
+          el.textContent = cell.owner === 'faithy' ? '♥' : '✦';
+        }
       } else {
+        // Hidden cell — bomb, wildcard, or empty all look identical
         el.textContent = '';
       }
 
@@ -868,8 +870,8 @@ function handleCellClick(key) {
 
   const isBomb = cell.type === 'bomb';
   const isWild = cell.type === 'wildcard';
+  const other = myPlayer === 'faithy' ? 'rodri' : 'faithy';
 
-  // Animate
   const el = document.querySelector(`[data-key="${key}"]`);
   if (el) el.classList.add('cell-place-anim');
 
@@ -877,40 +879,57 @@ function handleCellClick(key) {
   const updates = {};
 
   if (isBomb) {
-    // Bomb: claim but lose turn
+    // 💣 Bomb: you claim the cell BUT lose your turn — opponent goes again
     updates[`cells/${key}/owner`] = myPlayer;
     updates[`cells/${key}/type`] = 'bomb_taken';
-    // turn stays — switch to other player (penalty = no placement advantage, they still switch)
-    updates['turn'] = myPlayer === 'faithy' ? 'rodri' : 'faithy';
+    updates['turn'] = other;
     updates['timerStart'] = Date.now();
-    // Status message
-    const statusKey = 'status-' + myPlayer;
+    updates['lastEvent'] = { type: 'bomb', player: myPlayer, ts: Date.now() };
+
+    // Still check win in case bomb cell completes a line
+    const newCells = JSON.parse(JSON.stringify(gameState.cells));
+    newCells[key] = { type: 'bomb_taken', owner: myPlayer };
+    const winResult = checkWin(newCells, myPlayer, boardSize, winLen);
+    if (winResult) {
+      updates['status'] = 'done';
+      updates['winner'] = myPlayer;
+      updates['winCells'] = winResult;
+      const scores = { ...(gameState.scores || { faithy: 0, rodri: 0 }) };
+      scores[myPlayer] = (scores[myPlayer] || 0) + 1;
+      const streaks = { ...(gameState.streaks || { faithy: 0, rodri: 0 }) };
+      streaks[myPlayer] = (streaks[myPlayer] || 0) + 1;
+      streaks[other] = 0;
+      updates['scores'] = scores;
+      updates['streaks'] = streaks;
+    } else if (isBoardFull(newCells, boardSize)) {
+      updates['status'] = 'done';
+      updates['winner'] = 'draw';
+    }
     window._dbUpdate(roomRef, updates);
     return;
   }
 
-  // Normal or wildcard
-  if (isWild) {
-    // Wildcard counts for both — we mark as owner but add a "wild" flag so win check counts it
-    updates[`cells/${key}/wild`] = true;
-  }
+  // ⭐ Wildcard or normal cell
   updates[`cells/${key}/owner`] = myPlayer;
+  if (isWild) updates[`cells/${key}/wild`] = true;
 
-  // Check win
   const newCells = JSON.parse(JSON.stringify(gameState.cells));
   newCells[key] = { ...newCells[key], owner: myPlayer };
   if (isWild) newCells[key].wild = true;
 
+  // Check win for current player, and also check if wildcard helps the other player
   const winResult = checkWin(newCells, myPlayer, boardSize, winLen);
+  const otherWin = isWild ? checkWin(newCells, other, boardSize, winLen) : null;
 
-  if (winResult) {
+  if (winResult || otherWin) {
+    // Whoever placed the wildcard gets the win
+    const winLine = winResult || otherWin;
     updates['status'] = 'done';
     updates['winner'] = myPlayer;
-    updates['winCells'] = winResult;
-    const scores = gameState.scores || { faithy: 0, rodri: 0 };
+    updates['winCells'] = winLine;
+    const scores = { ...(gameState.scores || { faithy: 0, rodri: 0 }) };
     scores[myPlayer] = (scores[myPlayer] || 0) + 1;
-    const streaks = gameState.streaks || { faithy: 0, rodri: 0 };
-    const other = myPlayer === 'faithy' ? 'rodri' : 'faithy';
+    const streaks = { ...(gameState.streaks || { faithy: 0, rodri: 0 }) };
     streaks[myPlayer] = (streaks[myPlayer] || 0) + 1;
     streaks[other] = 0;
     updates['scores'] = scores;
@@ -919,9 +938,9 @@ function handleCellClick(key) {
     updates['status'] = 'done';
     updates['winner'] = 'draw';
   } else {
-    const next = myPlayer === 'faithy' ? 'rodri' : 'faithy';
-    updates['turn'] = next;
+    updates['turn'] = other;
     updates['timerStart'] = Date.now();
+    if (isWild) updates['lastEvent'] = { type: 'wildcard', player: myPlayer, ts: Date.now() };
   }
 
   window._dbUpdate(roomRef, updates);
