@@ -1,0 +1,852 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Weather Guess 🌍</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+
+<!-- Firebase -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getDatabase, ref, set, get, onValue, update, push } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+  const firebaseConfig = {
+    apiKey: "AIzaSyDi_ZE2mcO4fDCAf6H8kkj65qGnF3yIRFU",
+    authDomain: "tictactoe-43d05.firebaseapp.com",
+    databaseURL: "https://tictactoe-43d05-default-rtdb.europe-west1.firebasedatabase.app",
+    projectId: "tictactoe-43d05",
+    storageBucket: "tictactoe-43d05.firebasestorage.app",
+    messagingSenderId: "255484181910",
+    appId: "1:255484181910:web:1647517292f0462ae7b1b7"
+  };
+  const app = initializeApp(firebaseConfig);
+  const db = getDatabase(app);
+  window._db = db; window._dbRef = ref; window._dbSet = set;
+  window._dbGet = get; window._dbOnValue = onValue;
+  window._dbUpdate = update; window._dbPush = push;
+  window._firebaseReady = true;
+  document.dispatchEvent(new Event('firebase-ready'));
+</script>
+
+<style>
+:root {
+  --bg-deep:#0f0508; --bg-mid:#1a0a0f; --wine:#6b1a2e;
+  --rose-dark:#9c3a5a; --rose-mid:#c97a9a; --rose-pale:#e8b4c8; --cream:#f0dce8;
+  --faithy:#e8647a; --rodri:#5b7dd8;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{min-height:100vh;background:radial-gradient(ellipse at 20% 0%,#3d0a1a 0%,#1a0a0f 40%,#0f0508 70%,#050208 100%);font-family:'Inter',sans-serif;color:var(--cream);overflow-x:hidden;}
+.screen{display:none;position:relative;z-index:1;}
+.screen.active{display:flex;flex-direction:column;align-items:center;min-height:100vh;padding:24px 16px;}
+.logo{font-family:'Playfair Display',serif;font-size:clamp(1.8rem,5vw,3rem);font-weight:700;color:var(--cream);letter-spacing:-0.02em;text-align:center;margin-bottom:4px;}
+.logo span{color:var(--rose-mid);font-style:italic;}
+.tagline{font-size:0.82rem;color:var(--rose-mid);letter-spacing:0.15em;text-transform:uppercase;margin-bottom:32px;text-align:center;}
+.card{background:linear-gradient(135deg,rgba(107,26,46,0.25),rgba(15,5,8,0.6));border:1px solid rgba(201,122,154,0.2);border-radius:20px;padding:24px 28px;backdrop-filter:blur(12px);width:100%;max-width:500px;margin-bottom:16px;}
+.card-title{font-family:'Playfair Display',serif;font-size:1rem;color:var(--rose-pale);margin-bottom:16px;text-align:center;}
+.btn{background:linear-gradient(135deg,var(--wine),var(--rose-dark));border:none;border-radius:12px;color:var(--cream);font-family:'Inter',sans-serif;font-size:0.9rem;font-weight:600;padding:12px 28px;cursor:pointer;transition:all 0.2s ease;width:100%;margin-top:12px;}
+.btn:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(156,58,90,0.4);}
+.btn:disabled{opacity:0.4;cursor:not-allowed;transform:none;}
+.btn-sm{padding:8px 18px;font-size:0.8rem;border-radius:8px;width:auto;margin-top:0;}
+.btn-ghost{background:transparent;border:1px solid rgba(201,122,154,0.3);}
+.btn-ghost:hover{background:rgba(201,122,154,0.1);box-shadow:none;}
+.player-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.player-btn{background:transparent;border:2px solid rgba(201,122,154,0.3);border-radius:14px;padding:22px 12px;cursor:pointer;transition:all 0.25s;display:flex;flex-direction:column;align-items:center;gap:8px;color:var(--cream);font-family:'Playfair Display',serif;}
+.player-btn.faithy{border-color:var(--faithy);}
+.player-btn.faithy:hover,.player-btn.faithy.selected{background:rgba(232,100,122,0.15);box-shadow:0 0 28px rgba(232,100,122,0.3);}
+.player-btn.rodri{border-color:var(--rodri);}
+.player-btn.rodri:hover,.player-btn.rodri.selected{background:rgba(91,125,216,0.15);box-shadow:0 0 28px rgba(91,125,216,0.3);}
+.player-icon{font-size:2.2rem;}
+.player-name{font-size:1.1rem;font-weight:600;}
+.player-desc{font-size:0.7rem;color:var(--rose-mid);font-family:'Inter',sans-serif;text-align:center;}
+.faithy-color{color:var(--faithy);}
+.rodri-color{color:var(--rodri);}
+.input-field{width:100%;background:rgba(255,255,255,0.05);border:1px solid rgba(201,122,154,0.25);border-radius:10px;padding:11px 14px;color:var(--cream);font-family:'Inter',sans-serif;font-size:0.88rem;outline:none;margin-bottom:10px;}
+.input-field:focus{border-color:rgba(201,122,154,0.5);}
+.input-field::placeholder{color:rgba(201,122,154,0.35);}
+.error-msg{color:#e87070;font-size:0.78rem;text-align:center;margin-top:6px;min-height:18px;}
+
+/* waiting */
+.waiting-pulse{width:70px;height:70px;border-radius:50%;background:var(--rose-dark);animation:pulse-wait 1.5s ease-in-out infinite;display:flex;align-items:center;justify-content:center;font-size:1.8rem;margin:24px auto;}
+@keyframes pulse-wait{0%,100%{transform:scale(1);box-shadow:0 0 0 0 rgba(156,58,90,0.5);}50%{transform:scale(1.08);box-shadow:0 0 0 18px rgba(156,58,90,0);}}
+.room-code{font-family:'Playfair Display',serif;font-size:2.2rem;letter-spacing:0.2em;color:var(--rose-mid);text-align:center;margin:10px 0;}
+
+/* ── GAME ── */
+#screen-game{padding:16px 12px;}
+.game-top{display:flex;align-items:center;justify-content:space-between;width:100%;max-width:1100px;margin-bottom:12px;}
+.game-layout{width:100%;max-width:1100px;display:grid;grid-template-columns:220px 1fr;gap:16px;align-items:start;}
+
+/* Side panel */
+.side-panel{display:flex;flex-direction:column;gap:12px;}
+.info-card{background:linear-gradient(135deg,rgba(107,26,46,0.2),rgba(15,5,8,0.5));border:1px solid rgba(201,122,154,0.15);border-radius:14px;padding:14px 16px;}
+.info-label{font-size:0.7rem;color:var(--rose-mid);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:6px;}
+.info-value{font-family:'Playfair Display',serif;font-size:1rem;color:var(--cream);}
+
+/* Avatar */
+.avatar-wrap{text-align:center;padding:12px;}
+.avatar-figure{font-size:4rem;line-height:1;margin-bottom:6px;transition:all 0.4s ease;}
+.outfit-label{font-size:0.78rem;color:var(--rose-pale);font-style:italic;}
+.outfit-desc{font-size:0.72rem;color:var(--rose-mid);margin-top:2px;}
+
+/* Outfit picker (for thinker) */
+.outfit-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px;}
+.outfit-btn{background:rgba(255,255,255,0.04);border:1px solid rgba(201,122,154,0.15);border-radius:8px;padding:7px 6px;cursor:pointer;color:var(--cream);font-size:0.72rem;text-align:center;transition:all 0.18s;display:flex;flex-direction:column;align-items:center;gap:2px;}
+.outfit-btn:hover{border-color:var(--rose-mid);background:rgba(201,122,154,0.1);}
+.outfit-btn.selected{border-color:var(--rose-mid);background:rgba(201,122,154,0.2);}
+.outfit-btn .ob-emoji{font-size:1.4rem;}
+
+/* Guesses log */
+.guesses-log{max-height:220px;overflow-y:auto;display:flex;flex-direction:column;gap:6px;}
+.guesses-log::-webkit-scrollbar{width:3px;}
+.guesses-log::-webkit-scrollbar-thumb{background:var(--wine);border-radius:2px;}
+.guess-entry{display:flex;align-items:center;gap:8px;padding:6px 8px;background:rgba(255,255,255,0.04);border-radius:8px;font-size:0.78rem;}
+.guess-flag{font-size:1.1rem;}
+.guess-country{flex:1;font-weight:500;}
+.guess-outfit{font-size:1rem;}
+.guess-num{font-size:0.68rem;color:var(--rose-mid);min-width:20px;}
+
+/* Map */
+.map-wrap{position:relative;}
+.map-container{background:rgba(15,5,8,0.5);border:1px solid rgba(201,122,154,0.15);border-radius:16px;overflow:hidden;padding:8px;}
+#world-map{width:100%;height:auto;display:block;}
+#world-map .country{fill:rgba(107,42,70,0.5);stroke:rgba(201,122,154,0.25);stroke-width:0.5;cursor:pointer;transition:fill 0.15s;}
+#world-map .country:hover{fill:rgba(201,122,154,0.5);}
+#world-map .country.guessed-faithy{fill:rgba(232,100,122,0.6);stroke:var(--faithy);}
+#world-map .country.guessed-rodri{fill:rgba(91,125,216,0.6);stroke:var(--rodri);}
+#world-map .country.correct{fill:#4caf50;stroke:#81c784;}
+#world-map .country.secret{fill:rgba(255,215,0,0.3);stroke:gold;}
+.map-hint{font-size:0.75rem;color:var(--rose-mid);text-align:center;margin-top:6px;font-style:italic;}
+
+/* Role badge */
+.role-badge{display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:20px;font-size:0.78rem;font-weight:600;letter-spacing:0.05em;}
+.role-thinker{background:rgba(255,215,0,0.15);border:1px solid rgba(255,215,0,0.4);color:#ffd700;}
+.role-guesser{background:rgba(91,125,216,0.15);border:1px solid rgba(91,125,216,0.4);color:#8faee8;}
+
+/* Win overlay */
+#win-overlay{display:none;position:fixed;inset:0;z-index:100;background:rgba(10,3,6,0.92);backdrop-filter:blur(8px);align-items:center;justify-content:center;flex-direction:column;}
+#win-overlay.show{display:flex;}
+.win-card{background:linear-gradient(135deg,rgba(107,26,46,0.5),rgba(15,5,8,0.9));border:1px solid rgba(201,122,154,0.3);border-radius:24px;padding:40px 48px;text-align:center;max-width:440px;width:90%;animation:win-in 0.5s cubic-bezier(0.34,1.56,0.64,1);}
+@keyframes win-in{from{transform:scale(0.6);opacity:0;}to{transform:scale(1);opacity:1;}}
+.win-emoji{font-size:3.5rem;margin-bottom:12px;display:block;}
+.win-title{font-family:'Playfair Display',serif;font-size:1.8rem;margin-bottom:10px;}
+.win-msg{color:var(--rose-pale);line-height:1.6;margin-bottom:24px;font-size:0.9rem;}
+.win-btns{display:flex;gap:10px;justify-content:center;}
+.confetti-piece{position:fixed;width:8px;height:8px;border-radius:2px;animation:confetti-fall linear forwards;pointer-events:none;z-index:99;}
+@keyframes confetti-fall{0%{transform:translateY(-20px) rotate(0deg);opacity:1;}100%{transform:translateY(110vh) rotate(720deg);opacity:0;}}
+
+/* tooltip */
+.map-tooltip{position:fixed;background:rgba(26,10,15,0.95);border:1px solid rgba(201,122,154,0.3);border-radius:8px;padding:6px 12px;font-size:0.78rem;pointer-events:none;z-index:50;display:none;color:var(--cream);}
+
+@media(max-width:700px){
+  .game-layout{grid-template-columns:1fr;}
+  .side-panel{flex-direction:row;flex-wrap:wrap;}
+  .info-card{flex:1;min-width:140px;}
+}
+</style>
+</head>
+<body>
+
+<div id="map-tooltip" class="map-tooltip"></div>
+
+<!-- ══════════════════════════════════════
+     SCREEN 1: PLAYER SELECT
+══════════════════════════════════════ -->
+<div id="screen-select" class="screen active">
+  <div class="logo">Weather <span>Guess</span> 🌍</div>
+  <div class="tagline">Think a country · Dress the clue</div>
+  <div class="card">
+    <div class="card-title">Who are you?</div>
+    <div class="player-grid">
+      <button class="player-btn faithy" onclick="selectPlayer('faithy')">
+        <span class="player-icon">🌸</span>
+        <span class="player-name faithy-color">Faithy</span>
+        <span class="player-desc">World traveller</span>
+      </button>
+      <button class="player-btn rodri" onclick="selectPlayer('rodri')">
+        <span class="player-icon">⚡</span>
+        <span class="player-name rodri-color">Rodri</span>
+        <span class="player-desc">Geography nerd</span>
+      </button>
+    </div>
+    <button class="btn" id="btn-next" disabled onclick="goToLobby()">Continue →</button>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════
+     SCREEN 2: LOBBY
+══════════════════════════════════════ -->
+<div id="screen-lobby" class="screen">
+  <div class="logo" style="font-size:2rem;margin-bottom:4px;">Weather <span>Guess</span></div>
+  <div class="tagline" style="margin-bottom:24px;">Set up your room</div>
+  <div class="card">
+    <div class="card-title">Room name</div>
+    <input class="input-field" id="room-input" placeholder="e.g. faithyrodri" maxlength="20">
+    <button class="btn" onclick="createOrJoinRoom()">Create / Join Room</button>
+    <div class="error-msg" id="lobby-error"></div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════
+     SCREEN 3: WAITING
+══════════════════════════════════════ -->
+<div id="screen-waiting" class="screen">
+  <div class="logo" style="font-size:2rem;">Waiting...</div>
+  <div class="tagline">Share the room name</div>
+  <div class="card" style="text-align:center;">
+    <div class="card-title">Room</div>
+    <div class="room-code" id="waiting-room"></div>
+    <div class="waiting-pulse">🌍</div>
+    <p style="font-size:0.82rem;color:var(--rose-pale);">Waiting for the other player...</p>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════
+     SCREEN 4: GAME
+══════════════════════════════════════ -->
+<div id="screen-game" class="screen">
+  <div class="game-top">
+    <div class="logo" style="font-size:1.3rem;margin-bottom:0;">Weather <span>Guess</span></div>
+    <button class="btn btn-sm btn-ghost" onclick="leaveGame()">Leave</button>
+  </div>
+
+  <div class="game-layout">
+    <!-- LEFT: side panel -->
+    <div class="side-panel">
+
+      <div class="info-card">
+        <div class="info-label">Your role</div>
+        <div id="role-display"></div>
+      </div>
+
+      <div class="info-card">
+        <div class="info-label">Round</div>
+        <div class="info-value" id="round-display">1</div>
+      </div>
+
+      <div class="info-card">
+        <div class="info-label">Scores</div>
+        <div style="display:flex;gap:12px;align-items:center;margin-top:4px;">
+          <span class="faithy-color" style="font-family:'Playfair Display',serif;font-size:1.1rem;">🌸 <span id="score-faithy">0</span></span>
+          <span style="color:var(--rose-mid);">vs</span>
+          <span class="rodri-color" style="font-family:'Playfair Display',serif;font-size:1.1rem;">⚡ <span id="score-rodri">0</span></span>
+        </div>
+      </div>
+
+      <!-- Avatar (shown to guesser) -->
+      <div class="info-card" id="avatar-card">
+        <div class="info-label">Current clue</div>
+        <div class="avatar-wrap">
+          <div class="avatar-figure" id="avatar-figure">🤷</div>
+          <div class="outfit-label" id="outfit-label">Waiting for clue...</div>
+          <div class="outfit-desc" id="outfit-desc"></div>
+        </div>
+      </div>
+
+      <!-- Outfit picker (shown to thinker) -->
+      <div class="info-card" id="outfit-picker-card" style="display:none;">
+        <div class="info-label">Pick outfit clue</div>
+        <div class="outfit-grid" id="outfit-grid"></div>
+        <button class="btn" id="btn-send-outfit" disabled onclick="sendOutfit()" style="margin-top:10px;font-size:0.82rem;padding:10px;">Send clue 👕</button>
+      </div>
+
+      <!-- Thinker: distance helper -->
+      <div class="info-card" id="distance-card" style="display:none;">
+        <div class="info-label">Last guess distance</div>
+        <div class="info-value" id="distance-display">—</div>
+        <div style="font-size:0.7rem;color:var(--rose-mid);margin-top:4px;" id="distance-sub"></div>
+      </div>
+
+      <!-- Guesses log -->
+      <div class="info-card">
+        <div class="info-label">Guesses</div>
+        <div class="guesses-log" id="guesses-log">
+          <div style="font-size:0.75rem;color:var(--rose-mid);font-style:italic;">No guesses yet</div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- RIGHT: map -->
+    <div class="map-wrap">
+      <div class="map-container">
+        <svg id="world-map" viewBox="0 0 2000 1001" xmlns="http://www.w3.org/2000/svg"></svg>
+        <div class="map-hint" id="map-hint">Click a country to guess</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- WIN OVERLAY -->
+<div id="win-overlay">
+  <div class="win-card">
+    <span class="win-emoji" id="win-emoji">🎉</span>
+    <div class="win-title" id="win-title"></div>
+    <div class="win-msg" id="win-msg"></div>
+    <div class="win-btns">
+      <button class="btn btn-sm btn-ghost" onclick="leaveGame()">Leave</button>
+      <button class="btn btn-sm" onclick="playAgain()">Next round</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════
+// OUTFITS (10 levels, 1=freezing → 10=beach)
+// ══════════════════════════════════════
+const OUTFITS = [
+  { level:1,  emoji:'🧊❄️🧍', label:'Absolute zero',    desc:'Full polar expedition gear',      maxKm:12000 },
+  { level:2,  emoji:'🥶🧥🧣', label:'Freezing',         desc:'Heavy coat, scarf, gloves, boots', maxKm:9000  },
+  { level:3,  emoji:'🧥🎿',   label:'Very cold',         desc:'Winter coat, hat',                 maxKm:7000  },
+  { level:4,  emoji:'🧥',     label:'Cold',              desc:'A solid coat',                     maxKm:5500  },
+  { level:5,  emoji:'🧤🧦',   label:'Chilly',            desc:'Jacket, layers underneath',        maxKm:4000  },
+  { level:6,  emoji:'🧶👕',   label:'Mild',              desc:'Jumper / light jacket',            maxKm:2500  },
+  { level:7,  emoji:'👕',     label:'Warm',              desc:'Just a T-shirt',                   maxKm:1500  },
+  { level:8,  emoji:'🩳👕',   label:'Hot',               desc:'Shorts and T-shirt',               maxKm:800   },
+  { level:9,  emoji:'🩱',     label:'Very hot',          desc:'Swimsuit territory',               maxKm:300   },
+  { level:10, emoji:'🩲🏖️',  label:'Practically next door', desc:'Trunks only. Almost there!',  maxKm:0     },
+];
+
+// ══════════════════════════════════════
+// COUNTRY DATA: name → {lat, lng, flag, iso}
+// Capitals coordinates for distance calc
+// ══════════════════════════════════════
+const COUNTRIES = {
+  "Afghanistan":      {lat:34.52,  lng:69.18,   flag:"🇦🇫", iso:"AF"},
+  "Albania":          {lat:41.33,  lng:19.82,   flag:"🇦🇱", iso:"AL"},
+  "Algeria":          {lat:36.74,  lng:3.06,    flag:"🇩🇿", iso:"DZ"},
+  "Angola":           {lat:-8.84,  lng:13.23,   flag:"🇦🇴", iso:"AO"},
+  "Argentina":        {lat:-34.61, lng:-58.37,  flag:"🇦🇷", iso:"AR"},
+  "Australia":        {lat:-35.28, lng:149.13,  flag:"🇦🇺", iso:"AU"},
+  "Austria":          {lat:48.21,  lng:16.37,   flag:"🇦🇹", iso:"AT"},
+  "Azerbaijan":       {lat:40.41,  lng:49.87,   flag:"🇦🇿", iso:"AZ"},
+  "Bangladesh":       {lat:23.72,  lng:90.41,   flag:"🇧🇩", iso:"BD"},
+  "Belarus":          {lat:53.90,  lng:27.57,   flag:"🇧🇾", iso:"BY"},
+  "Belgium":          {lat:50.85,  lng:4.35,    flag:"🇧🇪", iso:"BE"},
+  "Bolivia":          {lat:-16.50, lng:-68.15,  flag:"🇧🇴", iso:"BO"},
+  "Bosnia and Herzegovina": {lat:43.85, lng:18.36, flag:"🇧🇦", iso:"BA"},
+  "Brazil":           {lat:-15.78, lng:-47.93,  flag:"🇧🇷", iso:"BR"},
+  "Bulgaria":         {lat:42.70,  lng:23.32,   flag:"🇧🇬", iso:"BG"},
+  "Cambodia":         {lat:11.55,  lng:104.92,  flag:"🇰🇭", iso:"KH"},
+  "Cameroon":         {lat:3.87,   lng:11.52,   flag:"🇨🇲", iso:"CM"},
+  "Canada":           {lat:45.42,  lng:-75.70,  flag:"🇨🇦", iso:"CA"},
+  "Chile":            {lat:-33.46, lng:-70.65,  flag:"🇨🇱", iso:"CL"},
+  "China":            {lat:39.93,  lng:116.39,  flag:"🇨🇳", iso:"CN"},
+  "Colombia":         {lat:4.71,   lng:-74.07,  flag:"🇨🇴", iso:"CO"},
+  "Croatia":          {lat:45.81,  lng:15.98,   flag:"🇭🇷", iso:"HR"},
+  "Cuba":             {lat:23.13,  lng:-82.38,  flag:"🇨🇺", iso:"CU"},
+  "Czech Republic":   {lat:50.09,  lng:14.42,   flag:"🇨🇿", iso:"CZ"},
+  "Denmark":          {lat:55.68,  lng:12.57,   flag:"🇩🇰", iso:"DK"},
+  "Ecuador":          {lat:-0.23,  lng:-78.52,  flag:"🇪🇨", iso:"EC"},
+  "Egypt":            {lat:30.06,  lng:31.25,   flag:"🇪🇬", iso:"EG"},
+  "Ethiopia":         {lat:9.03,   lng:38.74,   flag:"🇪🇹", iso:"ET"},
+  "Finland":          {lat:60.17,  lng:24.94,   flag:"🇫🇮", iso:"FI"},
+  "France":           {lat:48.87,  lng:2.33,    flag:"🇫🇷", iso:"FR"},
+  "Germany":          {lat:52.52,  lng:13.40,   flag:"🇩🇪", iso:"DE"},
+  "Ghana":            {lat:5.56,   lng:-0.20,   flag:"🇬🇭", iso:"GH"},
+  "Greece":           {lat:37.98,  lng:23.73,   flag:"🇬🇷", iso:"GR"},
+  "Guatemala":        {lat:14.64,  lng:-90.51,  flag:"🇬🇹", iso:"GT"},
+  "Hungary":          {lat:47.50,  lng:19.04,   flag:"🇭🇺", iso:"HU"},
+  "Iceland":          {lat:64.13,  lng:-21.82,  flag:"🇮🇸", iso:"IS"},
+  "India":            {lat:28.64,  lng:77.22,   flag:"🇮🇳", iso:"IN"},
+  "Indonesia":        {lat:-6.21,  lng:106.85,  flag:"🇮🇩", iso:"ID"},
+  "Iran":             {lat:35.70,  lng:51.42,   flag:"🇮🇷", iso:"IR"},
+  "Iraq":             {lat:33.34,  lng:44.40,   flag:"🇮🇶", iso:"IQ"},
+  "Ireland":          {lat:53.33,  lng:-6.25,   flag:"🇮🇪", iso:"IE"},
+  "Israel":           {lat:31.77,  lng:35.22,   flag:"🇮🇱", iso:"IL"},
+  "Italy":            {lat:41.90,  lng:12.48,   flag:"🇮🇹", iso:"IT"},
+  "Japan":            {lat:35.69,  lng:139.69,  flag:"🇯🇵", iso:"JP"},
+  "Jordan":           {lat:31.95,  lng:35.93,   flag:"🇯🇴", iso:"JO"},
+  "Kazakhstan":       {lat:51.18,  lng:71.45,   flag:"🇰🇿", iso:"KZ"},
+  "Kenya":            {lat:-1.27,  lng:36.82,   flag:"🇰🇪", iso:"KE"},
+  "South Korea":      {lat:37.57,  lng:126.98,  flag:"🇰🇷", iso:"KR"},
+  "Kuwait":           {lat:29.37,  lng:47.98,   flag:"🇰🇼", iso:"KW"},
+  "Libya":            {lat:32.90,  lng:13.18,   flag:"🇱🇾", iso:"LY"},
+  "Malaysia":         {lat:3.15,   lng:101.70,  flag:"🇲🇾", iso:"MY"},
+  "Mexico":           {lat:19.43,  lng:-99.13,  flag:"🇲🇽", iso:"MX"},
+  "Morocco":          {lat:34.01,  lng:-6.85,   flag:"🇲🇦", iso:"MA"},
+  "Mozambique":       {lat:-25.97, lng:32.59,   flag:"🇲🇿", iso:"MZ"},
+  "Myanmar":          {lat:16.80,  lng:96.15,   flag:"🇲🇲", iso:"MM"},
+  "Nepal":            {lat:27.72,  lng:85.32,   flag:"🇳🇵", iso:"NP"},
+  "Netherlands":      {lat:52.08,  lng:4.31,    flag:"🇳🇱", iso:"NL"},
+  "New Zealand":      {lat:-41.29, lng:174.78,  flag:"🇳🇿", iso:"NZ"},
+  "Nigeria":          {lat:9.06,   lng:7.49,    flag:"🇳🇬", iso:"NG"},
+  "Norway":           {lat:59.91,  lng:10.75,   flag:"🇳🇴", iso:"NO"},
+  "Pakistan":         {lat:33.72,  lng:73.06,   flag:"🇵🇰", iso:"PK"},
+  "Peru":             {lat:-12.05, lng:-77.05,  flag:"🇵🇪", iso:"PE"},
+  "Philippines":      {lat:14.60,  lng:120.98,  flag:"🇵🇭", iso:"PH"},
+  "Poland":           {lat:52.23,  lng:21.01,   flag:"🇵🇱", iso:"PL"},
+  "Portugal":         {lat:38.72,  lng:-9.14,   flag:"🇵🇹", iso:"PT"},
+  "Romania":          {lat:44.44,  lng:26.10,   flag:"🇷🇴", iso:"RO"},
+  "Russia":           {lat:55.75,  lng:37.62,   flag:"🇷🇺", iso:"RU"},
+  "Saudi Arabia":     {lat:24.69,  lng:46.72,   flag:"🇸🇦", iso:"SA"},
+  "Serbia":           {lat:44.80,  lng:20.46,   flag:"🇷🇸", iso:"RS"},
+  "Slovakia":         {lat:48.15,  lng:17.11,   flag:"🇸🇰", iso:"SK"},
+  "Somalia":          {lat:2.05,   lng:45.34,   flag:"🇸🇴", iso:"SO"},
+  "South Africa":     {lat:-25.74, lng:28.19,   flag:"🇿🇦", iso:"ZA"},
+  "Spain":            {lat:40.42,  lng:-3.70,   flag:"🇪🇸", iso:"ES"},
+  "Sri Lanka":        {lat:6.89,   lng:79.85,   flag:"🇱🇰", iso:"LK"},
+  "Sudan":            {lat:15.55,  lng:32.53,   flag:"🇸🇩", iso:"SD"},
+  "Sweden":           {lat:59.33,  lng:18.07,   flag:"🇸🇪", iso:"SE"},
+  "Switzerland":      {lat:46.95,  lng:7.45,    flag:"🇨🇭", iso:"CH"},
+  "Syria":            {lat:33.51,  lng:36.29,   flag:"🇸🇾", iso:"SY"},
+  "Taiwan":           {lat:25.05,  lng:121.53,  flag:"🇹🇼", iso:"TW"},
+  "Tanzania":         {lat:-6.17,  lng:35.74,   flag:"🇹🇿", iso:"TZ"},
+  "Thailand":         {lat:13.75,  lng:100.52,  flag:"🇹🇭", iso:"TH"},
+  "Tunisia":          {lat:36.82,  lng:10.18,   flag:"🇹🇳", iso:"TN"},
+  "Turkey":           {lat:39.92,  lng:32.85,   flag:"🇹🇷", iso:"TR"},
+  "Uganda":           {lat:0.32,   lng:32.58,   flag:"🇺🇬", iso:"UG"},
+  "Ukraine":          {lat:50.45,  lng:30.52,   flag:"🇺🇦", iso:"UA"},
+  "United Arab Emirates": {lat:24.47, lng:54.37, flag:"🇦🇪", iso:"AE"},
+  "United Kingdom":   {lat:51.50,  lng:-0.13,   flag:"🇬🇧", iso:"GB"},
+  "United States":    {lat:38.90,  lng:-77.04,  flag:"🇺🇸", iso:"US"},
+  "Uruguay":          {lat:-34.86, lng:-56.17,  flag:"🇺🇾", iso:"UY"},
+  "Uzbekistan":       {lat:41.30,  lng:69.27,   flag:"🇺🇿", iso:"UZ"},
+  "Venezuela":        {lat:10.48,  lng:-66.88,  flag:"🇻🇪", iso:"VE"},
+  "Vietnam":          {lat:21.03,  lng:105.85,  flag:"🇻🇳", iso:"VN"},
+  "Yemen":            {lat:15.35,  lng:44.21,   flag:"🇾🇪", iso:"YE"},
+  "Zambia":           {lat:-15.42, lng:28.28,   flag:"🇿🇲", iso:"ZM"},
+  "Zimbabwe":         {lat:-17.83, lng:31.05,   flag:"🇿🇼", iso:"ZW"},
+};
+
+// ══════════════════════════════════════
+// STATE
+// ══════════════════════════════════════
+let myPlayer = null;
+let roomName = null;
+let gameState = null;
+let selectedOutfitLevel = null;
+let roomUnsub = null;
+
+// ══════════════════════════════════════
+// NAV
+// ══════════════════════════════════════
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen-' + id).classList.add('active');
+}
+
+function selectPlayer(p) {
+  myPlayer = p;
+  document.querySelectorAll('.player-btn').forEach(b => b.classList.remove('selected'));
+  document.querySelector('.player-btn.' + p).classList.add('selected');
+  document.getElementById('btn-next').disabled = false;
+}
+
+function goToLobby() { if (myPlayer) showScreen('lobby'); }
+
+// ══════════════════════════════════════
+// FIREBASE
+// ══════════════════════════════════════
+function waitForFirebase(cb) {
+  if (window._firebaseReady) { cb(); return; }
+  document.addEventListener('firebase-ready', cb, { once: true });
+}
+
+function createOrJoinRoom() {
+  const raw = document.getElementById('room-input').value.trim().toLowerCase().replace(/[^a-z0-9]/g,'');
+  if (!raw) { document.getElementById('lobby-error').textContent = 'Please enter a room name.'; return; }
+  roomName = 'wg_' + raw;  // prefix to avoid collision with H&C
+
+  waitForFirebase(() => {
+    const roomRef = window._dbRef(window._db, 'wgrooms/' + roomName);
+    window._dbGet(roomRef).then(snap => {
+      const data = snap.val();
+      if (!data) {
+        window._dbSet(roomRef, buildInitialState()).then(() => { listenRoom(); showScreen('waiting'); document.getElementById('waiting-room').textContent = raw; });
+      } else {
+        listenRoom(); showScreen('waiting'); document.getElementById('waiting-room').textContent = raw;
+      }
+    }).catch(e => { document.getElementById('lobby-error').textContent = 'Error: ' + e.message; });
+  });
+}
+
+function buildInitialState() {
+  return {
+    status: 'waiting',  // waiting|picking|guessing|round_over
+    players: {},
+    round: 1,
+    scores: { faithy: 0, rodri: 0 },
+    thinker: 'faithy',   // faithy thinks first
+    guesser: 'rodri',
+    secretCountry: null,
+    currentOutfitLevel: null,
+    guesses: [],
+    winner: null,
+  };
+}
+
+function listenRoom() {
+  const roomRef = window._dbRef(window._db, 'wgrooms/' + roomName);
+  roomUnsub = window._dbOnValue(roomRef, snap => {
+    const data = snap.val();
+    if (!data) return;
+    gameState = data;
+
+    if (!data.players?.[myPlayer]) {
+      window._dbUpdate(window._dbRef(window._db, `wgrooms/${roomName}/players`), { [myPlayer]: true });
+    }
+
+    if (data.players?.faithy && data.players?.rodri && data.status === 'waiting') {
+      // Thinker must now pick a country
+      window._dbUpdate(roomRef, { status: 'picking' });
+    }
+
+    if (data.status !== 'waiting') {
+      showScreen('game');
+      renderGame(data);
+    }
+  });
+}
+
+// ══════════════════════════════════════
+// RENDER
+// ══════════════════════════════════════
+function renderGame(data) {
+  const isThinker = myPlayer === data.thinker;
+  const isGuesser = myPlayer === data.guesser;
+
+  // Scores
+  document.getElementById('score-faithy').textContent = data.scores?.faithy ?? 0;
+  document.getElementById('score-rodri').textContent = data.scores?.rodri ?? 0;
+  document.getElementById('round-display').textContent = data.round ?? 1;
+
+  // Role badge
+  const roleEl = document.getElementById('role-display');
+  if (isThinker) {
+    roleEl.innerHTML = '<span class="role-badge role-thinker">👑 Thinker</span>';
+  } else {
+    roleEl.innerHTML = '<span class="role-badge role-guesser">🔍 Guesser</span>';
+  }
+
+  // Map hint
+  const mapHint = document.getElementById('map-hint');
+  if (data.status === 'picking') {
+    if (isThinker) {
+      mapHint.textContent = '👆 Click a country on the map to set it as the secret';
+    } else {
+      mapHint.textContent = '⏳ Waiting for ' + data.thinker + ' to pick a country...';
+    }
+  } else if (data.status === 'guessing') {
+    if (isGuesser) {
+      mapHint.textContent = '👆 Click a country to guess!';
+    } else {
+      mapHint.textContent = '⏳ ' + data.guesser + ' is guessing...';
+    }
+  }
+
+  // Avatar (for guesser) vs outfit picker (for thinker)
+  const avatarCard = document.getElementById('avatar-card');
+  const outfitCard = document.getElementById('outfit-picker-card');
+  const distCard = document.getElementById('distance-card');
+
+  if (isThinker) {
+    avatarCard.style.display = 'none';
+    distCard.style.display = data.status === 'guessing' ? 'block' : 'none';
+    if (data.status === 'guessing') {
+      outfitCard.style.display = 'block';
+      renderOutfitPicker(data);
+      // Show last guess distance to thinker
+      if (data.guesses?.length) {
+        const last = data.guesses[data.guesses.length - 1];
+        document.getElementById('distance-display').textContent = Math.round(last.km).toLocaleString() + ' km';
+        document.getElementById('distance-sub').textContent = 'from ' + last.country;
+      }
+    } else {
+      outfitCard.style.display = 'none';
+    }
+  } else {
+    // Guesser
+    outfitCard.style.display = 'none';
+    distCard.style.display = 'none';
+    avatarCard.style.display = 'block';
+    renderAvatar(data);
+  }
+
+  // Guesses log
+  renderGuessLog(data.guesses || []);
+
+  // Map
+  renderMap(data);
+
+  // Round over / win
+  if (data.status === 'round_over') {
+    showRoundOver(data);
+  }
+}
+
+function renderAvatar(data) {
+  const level = data.currentOutfitLevel;
+  const fig = document.getElementById('avatar-figure');
+  const lbl = document.getElementById('outfit-label');
+  const desc = document.getElementById('outfit-desc');
+  if (!level) {
+    fig.textContent = '🤷';
+    lbl.textContent = 'Waiting for first clue...';
+    desc.textContent = '';
+  } else {
+    const outfit = OUTFITS[level - 1];
+    fig.textContent = outfit.emoji;
+    lbl.textContent = outfit.label;
+    desc.textContent = outfit.desc;
+  }
+}
+
+function renderOutfitPicker(data) {
+  const grid = document.getElementById('outfit-grid');
+  grid.innerHTML = '';
+  OUTFITS.forEach(o => {
+    const btn = document.createElement('button');
+    btn.className = 'outfit-btn' + (selectedOutfitLevel === o.level ? ' selected' : '');
+    btn.innerHTML = `<span class="ob-emoji">${o.emoji}</span><span>${o.label}</span>`;
+    btn.onclick = () => {
+      selectedOutfitLevel = o.level;
+      document.getElementById('btn-send-outfit').disabled = false;
+      document.querySelectorAll('.outfit-btn').forEach(b => b.classList.remove('selected'));
+      btn.classList.add('selected');
+    };
+    grid.appendChild(btn);
+  });
+}
+
+function renderGuessLog(guesses) {
+  const log = document.getElementById('guesses-log');
+  if (!guesses.length) {
+    log.innerHTML = '<div style="font-size:0.75rem;color:var(--rose-mid);font-style:italic;">No guesses yet</div>';
+    return;
+  }
+  log.innerHTML = guesses.map((g, i) => {
+    const outfit = g.outfitLevel ? OUTFITS[g.outfitLevel - 1]?.emoji : '❓';
+    return `<div class="guess-entry">
+      <span class="guess-num">#${i+1}</span>
+      <span class="guess-flag">${g.flag || '🏳️'}</span>
+      <span class="guess-country">${g.country}</span>
+      <span class="guess-outfit">${outfit}</span>
+    </div>`;
+  }).reverse().join('');
+}
+
+function renderMap(data) {
+  const svg = document.getElementById('world-map');
+  // Color guessed countries
+  const guessedCountries = (data.guesses || []).map(g => g.country);
+  svg.querySelectorAll('.country').forEach(el => {
+    const name = el.dataset.name;
+    el.classList.remove('guessed-faithy','guessed-rodri','correct','secret');
+    if (name && guessedCountries.includes(name)) {
+      el.classList.add('guessed-' + data.guesser);
+    }
+    // Show secret on round over
+    if (data.status === 'round_over' && name === data.secretCountry) {
+      el.classList.add('correct');
+    }
+  });
+}
+
+// ══════════════════════════════════════
+// ACTIONS
+// ══════════════════════════════════════
+function handleMapClick(countryName) {
+  if (!gameState || !countryName) return;
+
+  if (gameState.status === 'picking' && myPlayer === gameState.thinker) {
+    // Set secret country
+    const roomRef = window._dbRef(window._db, 'wgrooms/' + roomName);
+    window._dbUpdate(roomRef, {
+      secretCountry: countryName,
+      status: 'guessing',
+      guesses: [],
+      currentOutfitLevel: null,
+    });
+    return;
+  }
+
+  if (gameState.status === 'guessing' && myPlayer === gameState.guesser) {
+    const secret = gameState.secretCountry;
+    if (!secret) return;
+    if (countryName === secret) {
+      // Correct!
+      const scores = { ...(gameState.scores || { faithy: 0, rodri: 0 }) };
+      scores[myPlayer] = (scores[myPlayer] || 0) + 1;
+      const roomRef = window._dbRef(window._db, 'wgrooms/' + roomName);
+      window._dbUpdate(roomRef, {
+        status: 'round_over',
+        winner: myPlayer,
+        scores,
+      });
+      return;
+    }
+    // Wrong — calculate distance and ask thinker for outfit
+    const km = calcDistance(countryName, secret);
+    const flag = COUNTRIES[countryName]?.flag || '🏳️';
+    const guesses = [...(gameState.guesses || []), { country: countryName, flag, km, outfitLevel: null }];
+    const roomRef = window._dbRef(window._db, 'wgrooms/' + roomName);
+    window._dbUpdate(roomRef, { guesses, status: 'guessing', pendingOutfit: true });
+  }
+}
+
+function sendOutfit() {
+  if (!selectedOutfitLevel || !gameState) return;
+  const guesses = [...(gameState.guesses || [])];
+  // Attach outfit to last guess that has no outfit
+  for (let i = guesses.length - 1; i >= 0; i--) {
+    if (!guesses[i].outfitLevel) {
+      guesses[i].outfitLevel = selectedOutfitLevel;
+      break;
+    }
+  }
+  selectedOutfitLevel = null;
+  document.getElementById('btn-send-outfit').disabled = true;
+  window._dbUpdate(window._dbRef(window._db, 'wgrooms/' + roomName), {
+    guesses,
+    currentOutfitLevel: guesses[guesses.length - 1].outfitLevel,
+    pendingOutfit: false,
+  });
+}
+
+// ══════════════════════════════════════
+// DISTANCE (Haversine)
+// ══════════════════════════════════════
+function calcDistance(countryA, countryB) {
+  const a = COUNTRIES[countryA];
+  const b = COUNTRIES[countryB];
+  if (!a || !b) return 99999;
+  const R = 6371;
+  const dLat = (b.lat - a.lat) * Math.PI / 180;
+  const dLng = (b.lng - a.lng) * Math.PI / 180;
+  const x = Math.sin(dLat/2)**2 + Math.cos(a.lat*Math.PI/180)*Math.cos(b.lat*Math.PI/180)*Math.sin(dLng/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1-x));
+}
+
+// ══════════════════════════════════════
+// ROUND OVER
+// ══════════════════════════════════════
+function showRoundOver(data) {
+  const overlay = document.getElementById('win-overlay');
+  overlay.classList.add('show');
+  const guesser = data.guesser;
+  const secret = data.secretCountry;
+  const flag = COUNTRIES[secret]?.flag || '🌍';
+  const attempts = data.guesses?.length || 0;
+
+  document.getElementById('win-emoji').textContent = guesser === 'faithy' ? '🌸' : '⚡';
+  document.getElementById('win-title').innerHTML = guesser === 'faithy'
+    ? `<span style="color:var(--faithy)">Faithy got it!</span>`
+    : `<span style="color:var(--rodri)">Rodri got it!</span>`;
+  document.getElementById('win-msg').textContent =
+    `The country was ${flag} ${secret}. Guessed in ${attempts} ${attempts===1?'attempt':'attempts'}.`;
+
+  if (guesser === myPlayer) launchConfetti();
+  renderMap(data); // show the correct country in green
+}
+
+function playAgain() {
+  document.getElementById('win-overlay').classList.remove('show');
+  document.querySelectorAll('.confetti-piece').forEach(p => p.remove());
+  if (!gameState) return;
+  // Swap roles
+  const newThinker = gameState.guesser;
+  const newGuesser = gameState.thinker;
+  window._dbUpdate(window._dbRef(window._db, 'wgrooms/' + roomName), {
+    status: 'picking',
+    thinker: newThinker,
+    guesser: newGuesser,
+    round: (gameState.round || 1) + 1,
+    secretCountry: null,
+    currentOutfitLevel: null,
+    guesses: [],
+    winner: null,
+    pendingOutfit: false,
+  });
+}
+
+function leaveGame() {
+  if (roomUnsub) roomUnsub();
+  document.getElementById('win-overlay').classList.remove('show');
+  document.querySelectorAll('.confetti-piece').forEach(p => p.remove());
+  gameState = null; roomName = null; myPlayer = null;
+  showScreen('select');
+  document.querySelectorAll('.player-btn').forEach(b => b.classList.remove('selected'));
+  document.getElementById('btn-next').disabled = true;
+}
+
+function launchConfetti() {
+  const colors=['#e8647a','#c97a9a','#f0dce8','#e8b050','#fff'];
+  for(let i=0;i<70;i++){
+    setTimeout(()=>{
+      const p=document.createElement('div');p.className='confetti-piece';
+      p.style.left=Math.random()*100+'vw';p.style.top='-10px';
+      p.style.background=colors[Math.floor(Math.random()*colors.length)];
+      p.style.animationDuration=(1.5+Math.random()*2)+'s';
+      p.style.animationDelay=Math.random()*0.5+'s';
+      p.style.borderRadius=Math.random()>0.5?'50%':'2px';
+      p.style.width=p.style.height=(6+Math.random()*8)+'px';
+      document.body.appendChild(p);setTimeout(()=>p.remove(),4000);
+    },i*30);
+  }
+}
+
+// ══════════════════════════════════════
+// BUILD SVG WORLD MAP
+// ══════════════════════════════════════
+// Uses Natural Earth simplified paths (ISO A2 codes)
+// We'll load via fetch from a CDN topojson → convert to SVG paths
+(function buildMap() {
+  const svg = document.getElementById('world-map');
+  const tooltip = document.getElementById('map-tooltip');
+
+  // Fetch world geojson (simplified, ~400kb)
+  fetch('https://raw.githubusercontent.com/datasets/geo-countries/master/data/countries.geojson')
+    .then(r => r.json())
+    .then(geojson => {
+      // Simple equirectangular projection
+      const W = 2000, H = 1001;
+      function project(lng, lat) {
+        const x = (lng + 180) / 360 * W;
+        const y = (90 - lat) / 180 * H;
+        return [x, y];
+      }
+      function coordsToPath(coords) {
+        return coords.map((ring, ri) =>
+          ring.map(([lng, lat], i) => {
+            const [x, y] = project(lng, lat);
+            return (i === 0 ? `M${x.toFixed(1)},${y.toFixed(1)}` : `L${x.toFixed(1)},${y.toFixed(1)}`);
+          }).join('') + 'Z'
+        ).join('');
+      }
+
+      geojson.features.forEach(feat => {
+        const name = feat.properties.ADMIN || feat.properties.name;
+        if (!name) return;
+        const geom = feat.geometry;
+        let pathData = '';
+        if (geom.type === 'Polygon') {
+          pathData = coordsToPath(geom.coordinates);
+        } else if (geom.type === 'MultiPolygon') {
+          pathData = geom.coordinates.map(poly => coordsToPath(poly)).join('');
+        }
+        if (!pathData) return;
+
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        path.setAttribute('d', pathData);
+        path.setAttribute('class', 'country');
+        path.dataset.name = name;
+
+        path.addEventListener('mousemove', e => {
+          tooltip.style.display = 'block';
+          tooltip.style.left = (e.clientX + 12) + 'px';
+          tooltip.style.top = (e.clientY - 28) + 'px';
+          const flag = COUNTRIES[name]?.flag || '';
+          tooltip.textContent = flag + ' ' + name;
+        });
+        path.addEventListener('mouseleave', () => { tooltip.style.display = 'none'; });
+        path.addEventListener('click', () => handleMapClick(name));
+        svg.appendChild(path);
+      });
+    })
+    .catch(() => {
+      // Fallback: show text message
+      svg.innerHTML = '<text x="1000" y="500" fill="rgba(201,122,154,0.5)" text-anchor="middle" font-size="32">Map failed to load. Check connection.</text>';
+    });
+})();
+</script>
+</body>
+</html>
